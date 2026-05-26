@@ -10,8 +10,8 @@ namespace Settings {
 
 class Params {
 public:
-    static const int pulsarPageCount = 6; 
-    static const int userPageCount = 0;
+    static const int pulsarPageCount = 5; 
+    static const int userPageCount = 1; //in case you want to add user pages, change this and add the corresponding entries in the arrays below
     static const int pageCount = pulsarPageCount + userPageCount;
 
     static const int maxRadioCount = 6; //per page, due to space
@@ -29,17 +29,16 @@ public:
 enum Type {
     SETTINGSTYPE_MENU,
     SETTINGSTYPE_RACE,
-    SETTINGSTYPE_RACE1,
     SETTINGSTYPE_HOST,
     SETTINGSTYPE_OTT,
     SETTINGSTYPE_KO,
+    
 };
 
 //If you want to add settings to your packs, they go in this enum, and GetUserSettingValue should be used to obtain the value of a given setting
 enum UserType {
-
+    SETTINGSTYPE_RACE1,
 };
-
 }//namespace Settings
 
 //SETTINGS ENUM, for the page, DO NOT FORGET THE +6 for scrollers (see menu settings for example)
@@ -154,12 +153,6 @@ enum RaceSettingSOMDigits {
     HOSTSETTING_SOM_DIGITS_3,
 };
 
-//RACE1 SETTINGS
-enum RACE1SettingFPS {
-    RACE1SETTING_FPS_60 = 0x0,
-    RACE1SETTING_FPS_30 = 0x1
-};
-
 //HOST SETTINGS
 enum HostSettingHAW {
     HOSTSETTING_HOSTWINS_DISABLED,
@@ -235,6 +228,13 @@ enum KOSettingRacesPerKO {
     KOSETTING_RACESPERKO_4
 };
 //KOSETTINGS
+
+
+enum RACE1SettingFPS {
+    RACE1SETTING_FPS_60 = 0x0,
+    RACE1SETTING_FPS_30 = 0x1
+};
+
 
 }//namespace Pulsar
 
