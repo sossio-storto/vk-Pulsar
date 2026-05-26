@@ -64,7 +64,6 @@ enum RaceSettings {
 
 enum Race1settings {
     SETTINGRACE1_RADIO_FPS = 0, 
-    SETTINGRACE1_SCROLL_SOM = 0 + 6
 };
 
 enum HostSettings {
@@ -121,11 +120,6 @@ enum MenuSettingBoot {
     MENUSETTING_BOOT_L4
 };
 
-//MENU_1 SETTINGS
-enum MenuSettingFPS {
-    MENUSETTING_FPS_60 = 0x0,
-    MENUSETTING_FPS_30 = 0x1
-};
 //RACE SETTINGS
 enum RaceSettingMII {
     RACESETTING_MII_DISABLED = 0x0,
@@ -158,6 +152,12 @@ enum RaceSettingSOMDigits {
     HOSTSETTING_SOM_DIGITS_1,
     HOSTSETTING_SOM_DIGITS_2,
     HOSTSETTING_SOM_DIGITS_3,
+};
+
+//RACE1 SETTINGS
+enum RACE1SettingFPS {
+    RACE1SETTING_FPS_60 = 0x0,
+    RACE1SETTING_FPS_30 = 0x1
 };
 
 //HOST SETTINGS
