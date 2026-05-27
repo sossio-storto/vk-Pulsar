@@ -19,6 +19,7 @@
 #include <Gamemodes/KO/KOMgr.hpp>
 #include <Gamemodes/KO/KOWinnerPage.hpp>
 #include <Settings/UI/SettingsPanel.hpp>
+#include <UI/RoomKick/RoomKickPage.hpp>
 
 namespace Pulsar {
 namespace UI {
@@ -192,6 +193,9 @@ void ExpSection::CreateAndInitPage(ExpSection& self, u32 id) {
             break;
         case SettingsPanel::id:
             page = new SettingsPanel;
+            break;
+        case RoomKickPage::id:
+            page = new RoomKickPage;
             break;
         default:
             page = self.CreatePageById(initId);
