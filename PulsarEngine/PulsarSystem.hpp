@@ -32,6 +32,8 @@ enum Context {
     PULSAR_MIIHEADS,
     PULSAR_MODE_OTT,
     PULSAR_MODE_KO,
+    PULSAR_STARTVKWW,  
+    PULSAR_STARTOTTWW, 
     PULSAR_CONTEXT_COUNT,
 };
 
@@ -62,6 +64,8 @@ public:
     const Info& GetInfo() const { return this->info; }
 
     bool IsContext(Context context) const { return (this->context & (1 << context)) != 0; }
+    void ClearContext() { this->context = 0; } 
+    void SetContext(u32 ctx) { this->context = ctx; }
     static s32 OnSceneEnter(Random& random);
 
     const char* GetModFolder() const { return modFolderName; }
