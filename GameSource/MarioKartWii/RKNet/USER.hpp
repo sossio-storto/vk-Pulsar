@@ -37,14 +37,20 @@ size_assert(USERPacket, 0xc0);
 
 
 class USERHandler {
+  public:
     static USERHandler* sInstance; //809c2108
     static void CreateInstance(); //80662778
     static void DestroyInstance(); //806627f8
+    void Update(); //806629c0
+    bool isInitialized;
+    void CreateSendPacket(); //8066300c
+
+    private:
     USERHandler(); //80662e08 inlined
     ~USERHandler(); //80662e64 inlined
 
     void Prepare(); //8066284c
-    void Update(); //806629c0
+
     void Reset(); //80662944
     void CopySendToPacketHolder(u8 aidToSendTo); //80662abc
     void ProcessPlayerDisconnect(u8 aid);
@@ -53,9 +59,9 @@ class USERHandler {
     void SetSendBR(); //80662dc4
 
     void ImportNewPackets(); //80662ebc
-    void CreateSendPacket(); //8066300c
 
-    bool isInitialized;
+
+
     u8 unknown_0x1[7];
 
     USERPacket toSendPacket; //0x8
