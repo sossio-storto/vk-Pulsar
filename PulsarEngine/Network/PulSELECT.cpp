@@ -8,6 +8,7 @@
 #include <Network/PulSELECT.hpp>
 #include <Settings/Settings.hpp>
 #include <SlotExpansion/CupsConfig.hpp>
+#include <Network/GPReport.hpp>
 
 
 namespace Pulsar {
@@ -144,6 +145,7 @@ void ExpSELECTHandler::DecideTrack(ExpSELECTHandler& self) {
             system->netMgr.curBlockingArrayIdx = (system->netMgr.curBlockingArrayIdx + 1) % system->GetInfo().GetTrackBlocking();
         }
     }
+    Network::ReportU32("wl:mkw_select_course", self.toSendPacket.pulWinningTrack);  // ← aggiungi un report per il vincitore della votazione del corso
 }
 kmCall(0x80661490, ExpSELECTHandler::DecideTrack);
 
@@ -198,6 +200,7 @@ static void DecideCC(ExpSELECTHandler& handler) {
         else if (ccSetting == HOSTSETTING_CC_MIRROR) ccClass = 3;
         handler.toSendPacket.engineClass = ccClass;
     }
+    Network::ReportU32("wl:mkw_select_cc", handler.toSendPacket.engineClass);  // ← aggiungi un report per la classe di CC decisa
 
 }
 kmCall(0x80661404, DecideCC);
