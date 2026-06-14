@@ -48,7 +48,7 @@ Kart::Stats* ApplySpeedModifier(KartId kartId, CharacterId characterId) {
     Item::blueShellMinimumDiveDistance = 640000.0f * factor;
     Item::blueShellHomingSpeed = 130.0f * factor;
 
-    Kart::hardSpeedCap = 120.0f * factor;
+    Kart::hardSpeedCap = 120.0f + (factor - 1.0f) * 90.0f;
     Kart::bulletSpeed = 145.0f * factor;
     Kart::starSpeed = 105.0f * factor;
     Kart::megaTCSpeed = 95.0f * factor;

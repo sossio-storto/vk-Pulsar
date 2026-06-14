@@ -112,9 +112,10 @@ struct MatchCommandControl {
 }; //0x98
 
 struct NodeInfo {
-    u8 unknown[0x1a];
-    u8 aid; //0x1a
-    u8 unknown_0x1b[0x30 - 0x1b];
+    u32 pid;
+    u8 unknown[0x12];
+    u8 aid;  // 0x16
+    u8 unknown_0x1b[0x30 - 0x17];
 }; //0x30
 
 struct MatchControl {
@@ -137,9 +138,9 @@ struct MatchControl {
     u8 unknown_0x19[0x30 - 0x19];
     vu8  qr2NNFinishCount; //0x30 NAT negotiation completion counter
     u8 padding2[3];
+    u32 _34; //0x34
 
-    NodeInfo nodes[32]; //0x34
-    u8 unknown_0x634[4]; //0x634
+    NodeInfo nodes[32]; //0x38
     u32 serverPid; //0x638
     u8 unknown_0x63c[0x6d0 - 0x63c];
     u16  qr2Port; //0x6d0

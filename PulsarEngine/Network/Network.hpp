@@ -10,11 +10,14 @@ enum DenyType {
     DENY_TYPE_NORMAL,
     DENY_TYPE_BAD_PACK,
     DENY_TYPE_OTT,
+    DENY_TYPE_KICK,
 };
+
+static const u32 MAX_TRACK_BLOCKING = 12; // Maximum number of blocked tracks synced via packets
 
 class Mgr { //Manages network related stuff within Pulsar
 public:
-    Mgr() : racesPerGP(3), curBlockingArrayIdx(0) {}
+    Mgr() : racesPerGP(3), curBlockingArrayIdx(0), lastGroupedTrackPlayed(false) {}
     u32 hostContext;
     DenyType denyType;
     u8 deniesCount;
@@ -22,7 +25,8 @@ public:
     u8 statusDatas[30];
     u8 curBlockingArrayIdx;
     u8 racesPerGP;
-    u8 padding[2];
+    bool lastGroupedTrackPlayed;
+    u8 padding[1];
     PulsarId* lastTracks;
 };
 

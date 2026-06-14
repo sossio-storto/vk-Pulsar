@@ -14,6 +14,10 @@
 #include <core/egg/DVD/DvdRipper.hpp>
 namespace Pulsar {
 
+namespace Network {
+    extern u32 REGIONID;
+}
+
 System* System::sInstance = nullptr;
 System::Inherit* System::inherit = nullptr;
 
@@ -38,7 +42,7 @@ BootHook CreateSystem(System::CreateSystem, 0);
 System::System() :
     heap(RKSystem::mInstance.EGGSystem), taskThread(EGG::TaskThread::Create(8, 0, 0x4000, this->heap)),
     //Modes
-    koMgr(nullptr), ottHideNames(false) {
+    koMgr(nullptr) {
 }
 
 void System::Init(const ConfigFile& conf) {
@@ -119,15 +123,29 @@ void System::InitSettings(const u16* totalTrophyCount) const {
 
 void System::UpdateContext() {
     const RacedataSettings& racedataSettings = Racedata::sInstance->menusScenario.settings;
-    this->ottVoteState = OTT::COMBO_NONE;
+    this->ottMgr.Reset();
     const Settings::Mgr& settings = Settings::Mgr::Get();
+    const RKNet::Controller* controller = RKNet::Controller::sInstance;
+    const bool isOnlineRoomActive = controller->connectionState != RKNet::CONNECTIONSTATE_SHUTDOWN;
+    
+    bool isFroom = controller->roomType == RKNet::ROOMTYPE_FROOM_HOST || controller->roomType == RKNet::ROOMTYPE_FROOM_NONHOST;
+    bool isRegionalRoom = isOnlineRoomActive && (controller->roomType == RKNet::ROOMTYPE_VS_REGIONAL || controller->roomType == RKNet::ROOMTYPE_JOINING_REGIONAL || controller->roomType == RKNet::ROOMTYPE_BT_REGIONAL);
+    bool isPublicOnlineRoom = isOnlineRoomActive && !isFroom && controller->roomType != RKNet::ROOMTYPE_NONE;
+
     bool isCT = true;
     bool isHAW = false;
     bool isKO = false;
     bool isOTT = false;
     bool isMiiHeads = settings.GetSettingValue(Settings::SETTINGSTYPE_RACE, SETTINGRACE_RADIO_MII);
+    bool isThunderCloud = settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_THUNDERCLOUD) == THUNDERCLOUD_NORMAL && isFroom;
+    bool isStartVKWW = false;
+    bool isStartOTTWW = false;
+    bool isStartItemRain = false;
+    bool isItemRainActive = false;
+    bool isItemStormActive = false;
+    bool isAllItemsCanLand = false;
+    bool isKOFinal = settings.GetSettingValue(Settings::SETTINGSTYPE_KO, SETTINGKO_FINAL) == KOSETTING_FINAL_ALWAYS;
 
-    const RKNet::Controller* controller = RKNet::Controller::sInstance;
     const GameMode mode = racedataSettings.gamemode;
     Network::Mgr& netMgr = this->netMgr;
     const u32 sceneId = GameScene::GetCurrent()->id;
@@ -152,12 +170,28 @@ void System::UpdateContext() {
                 isKO = newContext & (1 << PULSAR_MODE_KO);
                 isOTT = newContext & (1 << PULSAR_MODE_OTT);
                 isMiiHeads = newContext & (1 << PULSAR_MIIHEADS);
+                isThunderCloud = newContext & (1 << PULSAR_THUNDERCLOUD);
+                isStartVKWW = newContext & (1 << PULSAR_STARTVKWW);
+                isStartOTTWW = newContext & (1 << PULSAR_STARTOTTWW);
+                isStartItemRain = newContext & (1 << PULSAR_STARTITEMRAIN);
+                isItemRainActive = newContext & (1 << PULSAR_ITEMMODERAIN);
+                isItemStormActive = newContext & (1 << PULSAR_ITEMMODESTORM);
+                isAllItemsCanLand = newContext & (1 << PULSAR_ALLITEMSCANLAND);
+                isKOFinal = newContext & (1 << PULSAR_KOFINAL);
                 if(isOTT) {
                     isUMTs &= newContext & (1 << PULSAR_UMTS);
                     isFeather &= newContext & (1 << PULSAR_FEATHER);
                 }
                 break;
             default: isCT = true;
+        }
+        if (isRegionalRoom) {
+            const u32 region = Network::REGIONID;
+            if (region == 0x69) {
+                isOTT = true;
+            } else if (region == 0x0D) {
+                isItemRainActive = true;
+            }
         }
     }
     else {
@@ -172,7 +206,15 @@ void System::UpdateContext() {
 
     u32 context = (isCT << PULSAR_CT) | (isHAW << PULSAR_HAW) | (isMiiHeads << PULSAR_MIIHEADS);
     if(isCT) { //contexts that should only exist when CTs are on
-        context |= (is200 << PULSAR_200) | (isFeather << PULSAR_FEATHER) | (isUMTs << PULSAR_UMTS) | (isMegaTC << PULSAR_MEGATC) | (isOTT << PULSAR_MODE_OTT) | (isKO << PULSAR_MODE_KO);
+        context |= (is200 << PULSAR_200) | (isFeather << PULSAR_FEATHER) | (isUMTs << PULSAR_UMTS) | (isMegaTC << PULSAR_MEGATC) | (isOTT << PULSAR_MODE_OTT) | (isKO << PULSAR_MODE_KO)
+            | (isThunderCloud << PULSAR_THUNDERCLOUD)
+            | (isStartVKWW << PULSAR_STARTVKWW)
+            | (isStartOTTWW << PULSAR_STARTOTTWW)
+            | (isStartItemRain << PULSAR_STARTITEMRAIN)
+            | (isItemRainActive << PULSAR_ITEMMODERAIN)
+            | (isItemStormActive << PULSAR_ITEMMODESTORM)
+            | (isAllItemsCanLand << PULSAR_ALLITEMSCANLAND)
+            | (isKOFinal << PULSAR_KOFINAL);
     }
     this->context = context;
 

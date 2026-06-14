@@ -56,3 +56,15 @@ BuildTesting.bat
 *.vsidx
 PulsarPackCreator/Executable/Pulsar Pack Creator.dll.config
 *.v2
+
+# Pulsar build/scratch and extra files
+build/*.map
+scratch/
+PulsarEngine/UI/CtrlRaceBase/VisualStudioSetup.exe
+GameSource/*.bak
+Loader/Loader.pul
+PulsarPackCreator/Executable/Pulsar Pack Creator.deps.json
+PulsarPackCreator/Executable/Pulsar Pack Creator.dll
+PulsarPackCreator/Executable/Pulsar Pack Creator.runtimeconfig.json
+PulsarPackCreator/Executable/System.IO.Hashing.dll
+PulsarPackCreator/Executable/PulsarBMGModified.txt

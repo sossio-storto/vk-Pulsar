@@ -5,7 +5,7 @@
 namespace Pulsar {
 namespace OTT {
 
-//Combo after vote
+// Combo after vote
 enum VoteState {
     COMBO_NONE,
     COMBO_SELECTION,
@@ -15,9 +15,19 @@ enum VoteState {
     SELECT_READY,
 };
 
+struct Mgr {
+    Mgr() : hideNames(false) {}
+    void Reset() {
+        voteState = COMBO_NONE;
+        aidsInRace = 0;
+    }
+    u32 voteState;
+    bool hideNames;
+    u32 aidsInRace;
+};
 void AddGhostToVS();
 
-}//namespace OTT
-}//namespace Pulsar
+}  // namespace OTT
+}  // namespace Pulsar
 
 #endif

@@ -4,6 +4,9 @@
 #include <UI/UI.hpp>
 
 namespace Pulsar {
+namespace Network {
+    extern u32 REGIONID;
+}
 namespace UI {
 //EXPANDED WFC, keeping WW button and just hiding it in case it is ever needed...
 
@@ -18,6 +21,7 @@ ExpWFCMain::ExpWFCMain() {
 }
 
 void ExpWFCMain::OnInit() {
+    Network::REGIONID = System::sInstance->GetInfo().GetWiimmfiRegion();
     this->InitControlGroup(6); //5 controls usually + settings button
     WFCMainMenu::OnInit();
     this->AddControl(5, settingsButton, 0);
@@ -47,83 +51,217 @@ void ExpWFCMain::ExtOnButtonSelect(PushButton& button, u32 hudSlotId) {
 }
 
 //ExpWFCModeSel
-kmWrite32(0x8064c284, 0x38800001); //distance func
 
-ExpWFCModeSel::ExpWFCModeSel() : lastClickedButton(0) {
+ExpWFCModeSel::ExpWFCModeSel() : lastClickedButton(0), submenuState(STATE_MAIN) {
     this->onButtonSelectHandler.ptmf = &ExpWFCModeSel::OnModeButtonSelect;
     this->onModeButtonClickHandler.ptmf = &ExpWFCModeSel::OnModeButtonClick;
+    this->onBackButtonClickHandler.ptmf = &ExpWFCModeSel::OnBackButtonClick;
+    this->onBackPressHandler.ptmf = &ExpWFCModeSel::OnBackPress;
 }
 
-void ExpWFCModeSel::InitOTTButton(ExpWFCModeSel& self) {
-    self.InitControlGroup(6);
-    self.AddControl(5, self.ottButton, 0);
-    self.ottButton.Load(UI::buttonFolder, "PULOTTButton", "PULOTTButton", 1, 0, 0);
-    self.ottButton.buttonId = ottButtonId;
-    self.ottButton.SetOnClickHandler(self.onModeButtonClickHandler, 0);
-    self.ottButton.SetOnSelectHandler(self.onButtonSelectHandler);
 
-    Text::Info info;
+
+static void SetTextBoxMessageSafe(LayoutUIControl& control, const char* textBoxName, u32 bmgId, const Text::Info* textInfo = nullptr) {
+    if (control.layout.GetPaneByName(textBoxName) != nullptr) {
+        control.SetTextBoxMessage(textBoxName, bmgId, textInfo);
+    }
+}
+
+void ExpWFCModeSel::SetMenuTextAndRatings() {
+    Text::Info vrInfo;
+    memset(&vrInfo, 0, sizeof(Text::Info));
+    Text::Info brInfo;
+    memset(&brInfo, 0, sizeof(Text::Info));
     RKSYS::Mgr* rksysMgr = RKSYS::Mgr::sInstance;
     u32 vr = 0;
+    u32 br = 5000;
     if(rksysMgr->curLicenseId >= 0) {
         RKSYS::LicenseMgr& license = rksysMgr->licenses[rksysMgr->curLicenseId];
         vr = license.vr.points;
+        br = license.br.points;
     }
-    info.intToPass[0] = vr;
-    self.ottButton.SetTextBoxMessage("go", BMG_RATING, &info);
+
+    wchar_t vrBuffer[32];
+    swprintf(vrBuffer, 32, L"%u VR", vr);
+    vrInfo.strings[0] = vrBuffer;
+
+    wchar_t brBuffer[32];
+    swprintf(brBuffer, 32, L"%u BR", br);
+    brInfo.strings[0] = brBuffer;
+
+    Pages::GlobeSearch* search = SectionMgr::sInstance->curSection->Get<Pages::GlobeSearch>();
+    const u32 searchType = search != nullptr ? search->searchType : 0;
+
+    if (searchType == 0) {
+        SetTextBoxMessageSafe(this->vsButton, "text", BMG_VS_RESTORE); // VS
+        SetTextBoxMessageSafe(this->vsButton, "text_light_01", BMG_VS_RESTORE);
+        SetTextBoxMessageSafe(this->vsButton, "text_light_02", BMG_VS_RESTORE);
+        SetTextBoxMessageSafe(this->vsButton, "go", BMG_TEXT, &vrInfo); // VR
+        SetTextBoxMessageSafe(this->battleButton, "text", BMG_BATTLE_RESTORE); // Battle
+        SetTextBoxMessageSafe(this->battleButton, "text_light_01", BMG_BATTLE_RESTORE);
+        SetTextBoxMessageSafe(this->battleButton, "text_light_02", BMG_BATTLE_RESTORE);
+        SetTextBoxMessageSafe(this->battleButton, "go", BMG_TEXT, &brInfo); // BR
+    } else {
+        if (this->submenuState == STATE_MAIN) {
+            SetTextBoxMessageSafe(this->vsButton, "text", BMG_VS_WW_MENU); // VS WW
+            SetTextBoxMessageSafe(this->vsButton, "text_light_01", BMG_VS_WW_MENU);
+            SetTextBoxMessageSafe(this->vsButton, "text_light_02", BMG_VS_WW_MENU);
+            SetTextBoxMessageSafe(this->vsButton, "go", BMG_TEXT, &vrInfo); // VR
+            SetTextBoxMessageSafe(this->battleButton, "text", BMG_OTHER_VS_MENU); // Other VS
+            SetTextBoxMessageSafe(this->battleButton, "text_light_01", BMG_OTHER_VS_MENU);
+            SetTextBoxMessageSafe(this->battleButton, "text_light_02", BMG_OTHER_VS_MENU);
+            SetTextBoxMessageSafe(this->battleButton, "go", BMG_TEXT, &vrInfo); // VR
+        } else if (this->submenuState == STATE_VS_WW) {
+            SetTextBoxMessageSafe(this->vsButton, "text", BMG_VANZA_VS); // Vanza VS
+            SetTextBoxMessageSafe(this->vsButton, "text_light_01", BMG_VANZA_VS);
+            SetTextBoxMessageSafe(this->vsButton, "text_light_02", BMG_VANZA_VS);
+            SetTextBoxMessageSafe(this->vsButton, "go", BMG_TEXT, &vrInfo); // VR
+            SetTextBoxMessageSafe(this->battleButton, "text", BMG_200CC_VANZA_VS); // 200cc Vanza VS
+            SetTextBoxMessageSafe(this->battleButton, "text_light_01", BMG_200CC_VANZA_VS);
+            SetTextBoxMessageSafe(this->battleButton, "text_light_02", BMG_200CC_VANZA_VS);
+            SetTextBoxMessageSafe(this->battleButton, "go", BMG_TEXT, &vrInfo); // VR
+        } else if (this->submenuState == STATE_OTHER_VS) {
+            SetTextBoxMessageSafe(this->vsButton, "text", BMG_OTT_BUTTON); // OnlineTT
+            SetTextBoxMessageSafe(this->vsButton, "text_light_01", BMG_OTT_BUTTON);
+            SetTextBoxMessageSafe(this->vsButton, "text_light_02", BMG_OTT_BUTTON);
+            SetTextBoxMessageSafe(this->vsButton, "go", BMG_TEXT, &vrInfo); // VR
+            SetTextBoxMessageSafe(this->battleButton, "text", BMG_ITEMRAIN_WW_START_MESSAGE); // Item Rain WW
+            SetTextBoxMessageSafe(this->battleButton, "text_light_01", BMG_ITEMRAIN_WW_START_MESSAGE);
+            SetTextBoxMessageSafe(this->battleButton, "text_light_02", BMG_ITEMRAIN_WW_START_MESSAGE);
+            SetTextBoxMessageSafe(this->battleButton, "go", BMG_TEXT, &vrInfo); // VR
+        }
+    }
 }
-kmCall(0x8064c294, ExpWFCModeSel::InitOTTButton);
 
 void ExpWFCModeSel::OnActivatePatch() {
     register ExpWFCModeSel* page;
     asm(mr page, r29;);
     register Pages::GlobeSearch* search;
     asm(mr search, r30;);
-    const bool isHidden = search->searchType == 1 ? false : true; //make the button visible if continental was clicked
-    page->ottButton.isHidden = isHidden;
-    page->ottButton.manipulator.inaccessible = isHidden;
-    page->nextPage = PAGE_NONE;
-    PushButton* button = &page->vsButton;
-    u32 bmgId = UI::BMG_RACE_WITH11P;
-    switch(page->lastClickedButton) { //case 1 is already default
-        case 2:
-            button = &page->battleButton;
-            bmgId = UI::BMG_BATTLE_WITH6P;
-            break;
-        case ottButtonId:
-            if(!isHidden) {
-                button = &page->ottButton;
-                bmgId = UI::BMG_OTT_WW_BOTTOM;
-            }
-            break;
+
+    page->submenuState = STATE_MAIN;
+
+    if (search->searchType == 0) {
+        Network::REGIONID = System::sInstance->GetInfo().GetWiimmfiRegion();
+        System::sInstance->netMgr.ownStatusData = false;
+        page->lastClickedButton = 1;
+        page->WFCModeSelect::OnModeButtonClick(page->vsButton, 0);
+        return;
     }
-    page->bottomText.SetMessage(bmgId);
-    button->SelectInitial(0);
+
+    // VK Worldwide (search->searchType == 1)
+    page->vsButton.isHidden = false;
+    page->vsButton.manipulator.inaccessible = false;
+    page->battleButton.isHidden = false;
+    page->battleButton.manipulator.inaccessible = false;
+
+    page->nextPage = PAGE_NONE;
+
+    page->SetMenuTextAndRatings();
+    page->vsButton.SelectInitial(0);
 }
 kmCall(0x8064c5f0, ExpWFCModeSel::OnActivatePatch);
 
 void ExpWFCModeSel::OnModeButtonSelect(PushButton& modeButton, u32 hudSlotId) {
-    if(modeButton.buttonId == ottButtonId) {
-        this->bottomText.SetMessage(BMG_OTT_WW_BOTTOM);
+    Pages::GlobeSearch* search = SectionMgr::sInstance->curSection->Get<Pages::GlobeSearch>();
+    const u32 searchType = search != nullptr ? search->searchType : 0;
+
+    if (searchType == 0) {
+        WFCModeSelect::OnModeButtonSelect(modeButton, hudSlotId);
+    } else {
+        if (this->submenuState == STATE_MAIN) {
+            if (modeButton.buttonId == 1) {
+                this->bottomText.SetMessage(BMG_VS_WW_MENU);
+            } else {
+                this->bottomText.SetMessage(BMG_OTHER_VS_MENU);
+            }
+        } else if (this->submenuState == STATE_VS_WW) {
+            if (modeButton.buttonId == 1) {
+                this->bottomText.SetMessage(0x10da);
+            } else {
+                this->bottomText.SetMessage(BMG_200CC_VANZA_VS_DESC);
+            }
+        } else if (this->submenuState == STATE_OTHER_VS) {
+            if (modeButton.buttonId == 1) {
+                this->bottomText.SetMessage(BMG_OTT_WW_BOTTOM);
+            } else {
+                this->bottomText.SetMessage(BMG_ITEMRAIN_WW_START_MESSAGE);
+            }
+        }
     }
-    else WFCModeSelect::OnModeButtonSelect(modeButton, hudSlotId);
 }
 
 void ExpWFCModeSel::OnModeButtonClick(PushButton& modeButton, u32 hudSlotId) {
-    const u32 prevId = modeButton.buttonId;
-    this->lastClickedButton = prevId;
-    bool isOTT = false;
-    if(prevId == ottButtonId) {
-        isOTT = true;
-        modeButton.buttonId = 1;
+    Pages::GlobeSearch* search = SectionMgr::sInstance->curSection->Get<Pages::GlobeSearch>();
+    const u32 searchType = search != nullptr ? search->searchType : 0;
+
+    if (searchType == 0) {
+        WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
+        return;
     }
-    System::sInstance->netMgr.ownStatusData = isOTT;
-    WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
-    modeButton.buttonId = prevId;
+
+    const u32 clickedId = modeButton.buttonId;
+
+    if (this->submenuState == STATE_MAIN) {
+        if (clickedId == 1) {
+            this->submenuState = STATE_VS_WW;
+            this->SetMenuTextAndRatings();
+            this->vsButton.SelectInitial(0);
+        } else {
+            this->submenuState = STATE_OTHER_VS;
+            this->SetMenuTextAndRatings();
+            this->vsButton.SelectInitial(0);
+        }
+    } else if (this->submenuState == STATE_VS_WW) {
+        if (clickedId == 1) {
+            Network::REGIONID = System::sInstance->GetInfo().GetWiimmfiRegion();
+            System::sInstance->netMgr.ownStatusData = false;
+            WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
+        } else {
+            Network::REGIONID = 0x0C;
+            System::sInstance->netMgr.ownStatusData = false;
+            modeButton.buttonId = 1;
+            WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
+            modeButton.buttonId = clickedId;
+        }
+    } else if (this->submenuState == STATE_OTHER_VS) {
+        if (clickedId == 1) {
+            Network::REGIONID = 0x69;
+            System::sInstance->netMgr.ownStatusData = true;
+            modeButton.buttonId = 1;
+            WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
+            modeButton.buttonId = clickedId;
+        } else {
+            Network::REGIONID = 0x0D;
+            System::sInstance->netMgr.ownStatusData = false;
+            modeButton.buttonId = 1;
+            WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
+            modeButton.buttonId = clickedId;
+        }
+    }
 }
 
-//change initial button and instruction
-//kmWrite32(0x8064bcb4, 0x386306d8);
-//kmWrite32(0x8064bcc0, 0x388010d8);
+void ExpWFCModeSel::OnBackButtonClick(PushButton& backButton, u32 hudSlotId) {
+    Pages::GlobeSearch* search = SectionMgr::sInstance->curSection->Get<Pages::GlobeSearch>();
+    if (search != nullptr && search->searchType == 1 && this->submenuState != STATE_MAIN) {
+        this->submenuState = STATE_MAIN;
+        this->SetMenuTextAndRatings();
+        this->vsButton.SelectInitial(0);
+    } else {
+        WFCModeSelect::OnBackButtonClick(static_cast<CtrlMenuBackButton&>(backButton), hudSlotId);
+    }
+}
+
+void ExpWFCModeSel::OnBackPress(u32 hudSlotId) {
+    Pages::GlobeSearch* search = SectionMgr::sInstance->curSection->Get<Pages::GlobeSearch>();
+    if (search != nullptr && search->searchType == 1 && this->submenuState != STATE_MAIN) {
+        this->submenuState = STATE_MAIN;
+        this->SetMenuTextAndRatings();
+        this->vsButton.SelectInitial(0);
+    } else {
+        WFCModeSelect::OnBackPress(hudSlotId);
+    }
+}
+
 }//namespace UI
 }//namespace Pulsar

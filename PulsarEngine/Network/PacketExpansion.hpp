@@ -55,6 +55,10 @@ struct PulROOM : public     RKNet::ROOMPacket {
     //Generic ROOM settings
     u32 hostSystemContext; //System's context but with just gamemodes taken from the settings
     u8 raceCount;
+    u8 blockedTrackCount;  // Number of valid entries in blockedTracks (up to MAX_TRACK_BLOCKING)
+    u8 curBlockingArrayIdx;  // Current write index in circular buffer
+    bool lastGroupedTrackPlayed;
+    u16 blockedTracks[12];  // PulsarId array (up to MAX_TRACK_BLOCKING tracks)
 };
 
 enum SELECTComboStatus {
@@ -82,6 +86,12 @@ struct PulSELECT : public RKNet::SELECTPacket {
     u8 koPerRace;
     u8 racesPerKO;
     bool alwaysFinal;
+
+    //Track blocking
+    u8 blockedTrackCount;  // Number of valid entries in blockedTracks
+    u8 curBlockingArrayIdx;  // Current write index in circular buffer
+    bool lastGroupedTrackPlayed;
+    u16 blockedTracks[12];  // PulsarId array (up to MAX_TRACK_BLOCKING tracks)
 };
 
 struct PulRACEDATA : public RKNet::RACEDATAPacket {};

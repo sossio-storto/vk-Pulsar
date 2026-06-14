@@ -31,8 +31,8 @@ void LoadCorrectPageAfterMultiDrift(Pages::MultiDriftSelect* page, u32 animDirec
     page->EndStateAnimated(animLength, animDirection);
     System* system = System::sInstance;
     SectionMgr* sectionMgr = SectionMgr::sInstance;
-    if(system->ottVoteState == OTT::COMBO_SELECTION) {
-        system->ottVoteState = OTT::COMBO_SELECTED;
+    if(system->ottMgr.voteState == OTT::COMBO_SELECTION) {
+        system->ottMgr.voteState = OTT::COMBO_SELECTED;
         Network::ExpSELECTHandler& handler = Network::ExpSELECTHandler::Get();
         for(int i = 0; i < 2; ++i) {
             handler.toSendPacket.playersData[i].character = sectionMgr->sectionParams->characters[i];
@@ -48,11 +48,13 @@ kmCall(0x8084b68c, LoadCorrectPageAfterMultiDrift);
 
 //if more custom racemenus added in pulsar, make the func virtual
 void RaceMenuExtraControls(Pages::RaceMenu& page, u32 gameControlCount) {
-
     const SectionId curSectionId = SectionMgr::sInstance->curSection->sectionId;
-    if(curSectionId >= SECTION_P1_WIFI_FRIEND_VS || curSectionId >= SECTION_P2_WIFI_FRIEND_COIN) {
-        if(page.pageId == ChooseNextTrack::fakeId) return static_cast<ChooseNextTrack&>(page).InitExtraControls(gameControlCount);
-        else if(page.pageId == KO::RaceEndPage::fakeId) return static_cast<KO::RaceEndPage&>(page).InitExtraControls(gameControlCount);
+    if (curSectionId >= SECTION_P1_WIFI_FRIEND_VS || curSectionId >= SECTION_P2_WIFI_FRIEND_COIN) {
+        const ExpSection* section = ExpSection::GetSection();
+        if (page.pageId == ChooseNextTrack::fakeId && section->GetPulPage<ChooseNextTrack>() == &page)
+            return static_cast<ChooseNextTrack&>(page).InitExtraControls(gameControlCount);
+        else if (page.pageId == KO::RaceEndPage::fakeId && section->GetPulPage<KO::RaceEndPage>() == &page)
+            return static_cast<KO::RaceEndPage&>(page).InitExtraControls(gameControlCount);
     }
     page.InitControlGroup(gameControlCount);
 }

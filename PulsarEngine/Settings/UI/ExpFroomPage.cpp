@@ -3,6 +3,7 @@
 #include <PulsarSystem.hpp>
 #include <Settings/UI/ExpFroomPage.hpp>
 #include <UI/TeamSelect/TeamSelect.hpp>
+#include <UI/RoomKick/RoomKickPage.hpp>
 #include <UI/UI.hpp>
 
 namespace Pulsar {
@@ -15,12 +16,14 @@ ExpFroom::ExpFroom() : areControlsHidden(false) {
     this->onSettingsClickHandler.ptmf = &ExpFroom::OnSettingsButtonClick;
     this->onTeamsClickHandler.subject = this;
     this->onTeamsClickHandler.ptmf = &ExpFroom::OnTeamsButtonClick;
+    this->onKickClickHandler.subject = this;
+    this->onKickClickHandler.ptmf = &ExpFroom::OnKickButtonClick;
     this->onButtonSelectHandler.ptmf = &ExpFroom::ExtOnButtonSelect;
 }
 
 void ExpFroom::OnInit() {
 
-    this->InitControlGroup(7); //5 usually + settings button + teams button
+    this->InitControlGroup(8); //5 usually + settings button + teams button + kick button
     FriendRoom::OnInit();
 
     this->AddControl(5, settingsButton, 0);
@@ -35,6 +38,18 @@ void ExpFroom::OnInit() {
     this->teamsButton.buttonId = 6;
     this->teamsButton.SetOnClickHandler(this->onTeamsClickHandler, 0);
     this->teamsButton.SetOnSelectHandler(this->onButtonSelectHandler);
+
+    this->AddControl(7, kickButton, 0);
+    this->kickButton.Load(UI::buttonFolder, "FroomButton", "Kick", 1, 0, false);
+    this->kickButton.buttonId = 7;
+    this->kickButton.SetOnClickHandler(this->onKickClickHandler, 0);
+    this->kickButton.SetOnSelectHandler(this->onButtonSelectHandler);
+}
+
+void ExpFroom::OnActivate() {
+    FriendRoom::OnActivate();
+    RoomKickPage* kickPage = ExpSection::GetSection()->GetPulPage<RoomKickPage>();
+    if(kickPage) kickPage->ClearKickHistory();
 }
 
 void ExpFroom::OnResume() {
@@ -51,6 +66,7 @@ void ExpFroom::ExtOnButtonSelect(PushButton& button, u32 hudSlotId) {
         this->bottomText.SetMessage(bmgId, 0);
     }
     else if(button.buttonId == 6) this->bottomText.SetMessage(BMG_TEAMS_BOTTOM, 0);
+    else if(button.buttonId == 7) this->bottomText.SetMessage(BMG_KICK_BOTTOM, 0);
     else this->OnButtonSelect(button, hudSlotId);
 }
 
@@ -63,6 +79,11 @@ void ExpFroom::OnSettingsButtonClick(PushButton& button, u32 hudSlotId) {
 void ExpFroom::OnTeamsButtonClick(PushButton& button, u32 hudSlotId) {
     this->areControlsHidden = true;
     this->AddPageLayer(static_cast<PageId>(PULPAGE_TEAMSELECT), 0);
+}
+
+void ExpFroom::OnKickButtonClick(PushButton& button, u32 hudSlotId) {
+    this->areControlsHidden = true;
+    this->AddPageLayer(static_cast<PageId>(PULPAGE_ROOMKICK), 0);
 }
 
 void ExpFroom::AfterControlUpdate() {
@@ -78,6 +99,7 @@ void ExpFroom::AfterControlUpdate() {
     this->bottomText.isHidden = hidden;
     this->settingsButton.isHidden = hidden;
     this->teamsButton.isHidden = hidden;
+    this->kickButton.isHidden = hidden;
     globe->message.isHidden = hidden;
     globe->miiName.isHidden = hidden;
     for(FriendMatchingPlayer* player = &mgr->miiIcons[0]; player < &mgr->miiIcons[24]; player++) player->isHidden = hidden;
@@ -99,6 +121,8 @@ void ExpFroom::AfterControlUpdate() {
         if(sub.hostAid == sub.localAid && sub.playerCount >= 2) teamHidden = false;
         this->teamsButton.isHidden = teamHidden;
         this->teamsButton.manipulator.inaccessible = teamHidden;
+        this->kickButton.isHidden = teamHidden;
+        this->kickButton.manipulator.inaccessible = teamHidden;
     }
 
 }

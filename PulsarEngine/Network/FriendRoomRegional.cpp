@@ -12,7 +12,7 @@
 namespace Pulsar {
 namespace Network {
 
-static u32 REGIONID = 0x68;
+u32 REGIONID = 0x68;
 extern void ResetTrackBlockingOnRoomEnd();
 
 // FIX: SectionLoadHook richiede void(*)() senza parametri.
@@ -20,15 +20,20 @@ extern void ResetTrackBlockingOnRoomEnd();
 // NOTA: il doppio controllo PULSAR_MODE_OTT nel sorgente RR originale
 // sembra un copia-incolla incompleto — il secondo branch è irraggiungibile.
 static void SetRegionId() {
-    if (Pulsar::System::sInstance != nullptr &&
-        Pulsar::System::sInstance->IsContext(PULSAR_MODE_OTT)) {
+    if (Pulsar::System::sInstance->IsContext(PULSAR_STARTVKWW))
         REGIONID = 0x68;
-        return;
-    }
-
-    RKNet::Controller* controller = RKNet::Controller::sInstance;
-    if (controller != nullptr) {
-        REGIONID = controller->localStatusData.regionId;
+    else if (Pulsar::System::sInstance->IsContext(PULSAR_STARTOTTWW))
+        REGIONID = 0x69;
+    else if (Pulsar::System::sInstance->IsContext(PULSAR_STARTITEMRAIN))
+        REGIONID = 0x0D;
+    else {
+        RKNet::Controller* controller = RKNet::Controller::sInstance;
+        if (controller != nullptr) {
+            u8 curRegion = controller->localStatusData.regionId;
+            if (REGIONID != 0x69 && REGIONID != 0x0D) {
+                REGIONID = curRegion;
+            }
+        }
     }
 }
 static SectionLoadHook setRegionIdHook(SetRegionId);
@@ -100,6 +105,7 @@ static bool ConvertFriendRoomStateToRegional() {
                 netMgr.lastTracks[i] = PULSARID_NONE;
             }
             netMgr.curBlockingArrayIdx = 0;
+            netMgr.lastGroupedTrackPlayed = false;
         }
     }
 
@@ -141,9 +147,9 @@ static void SetNextSectionRegionalHook(SectionMgr* sectionMgr, SectionId nextSec
     SetRegionId();
     bool isFroom = RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_HOST ||
                    RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_NONHOST;
-    // NOTA: doppio PULSAR_MODE_OTT ereditato dal sorgente RR originale (secondo branch irraggiungibile)
-    if ((Pulsar::System::sInstance->IsContext(PULSAR_MODE_OTT) ||
-         Pulsar::System::sInstance->IsContext(PULSAR_MODE_OTT)) && isFroom) {
+    if ((Pulsar::System::sInstance->IsContext(PULSAR_STARTVKWW) ||
+         Pulsar::System::sInstance->IsContext(PULSAR_STARTOTTWW) ||
+         Pulsar::System::sInstance->IsContext(PULSAR_STARTITEMRAIN)) && isFroom) {
         static bool hasConverted = false;
         SectionId desiredSection = nextSectionId;
 

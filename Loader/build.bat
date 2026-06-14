@@ -1,6 +1,7 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
 cls
+if not exist build mkdir build
 del build\*.o
 
 :: CPP compilation settings

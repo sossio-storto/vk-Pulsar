@@ -119,7 +119,10 @@ void ExpSection::CreatePulPages() {
         this->CreateAndInitPage(*this, PAGE_MESSAGEBOX);
         this->CreateAndInitPage(*this, PAGE_SELECT_STAGE_MGR);
     }
-    if(this->Get<ExpFroom>() != nullptr) this->CreateAndInitPage(*this, PULPAGE_TEAMSELECT); //can also put it as part of the case froom of createandinitpage
+    if(this->Get<ExpFroom>() != nullptr) {
+        this->CreateAndInitPage(*this, PULPAGE_TEAMSELECT);
+        this->CreateAndInitPage(*this, PULPAGE_ROOMKICK);
+    }
 }
 
 void ExpSection::CreateAndInitPage(ExpSection& self, u32 id) {

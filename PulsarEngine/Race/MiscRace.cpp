@@ -43,10 +43,18 @@ kmCall(0x80799808, SetStartingItem);
 //From JoshuaMK, ported to C++ by Brawlbox and adapted as a setting
 static int MiiHeads(Racedata* racedata, u32 unused, u32 unused2, u8 id) {
     CharacterId charId = racedata->racesScenario.players[id].characterId;
-    if (System::sInstance->IsContext(PULSAR_MIIHEADS)) {
-        if (charId < MII_M) {
-            if (id == 0) charId = MII_M;
-            else if (RKNet::Controller::sInstance->connectionState != 0) charId = MII_M;
+    bool miiHeadFroom = HOSTSETTING_ALLOW_MIIHEADS_ENABLED;
+    bool isFroom = RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_HOST || RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_NONHOST;
+    if (isFroom)
+        miiHeadFroom = System::sInstance->IsContext(PULSAR_MIIHEADS) ? HOSTSETTING_ALLOW_MIIHEADS_ENABLED : HOSTSETTING_ALLOW_MIIHEADS_DISABLED;
+    if (Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_FPS, SETTINGHOST_ALLOW_MIIHEADS) == RACESETTING_MII_ENABLED && isFroom) {
+        if (miiHeadFroom == HOSTSETTING_ALLOW_MIIHEADS_ENABLED) {
+            if (charId < MII_M) {
+                if (id == 0)
+                    charId = MII_M;
+                else if (RKNet::Controller::sInstance->connectionState != 0)
+                    charId = MII_M;
+            }
         }
     }
     return charId;
@@ -78,8 +86,8 @@ static void BattleGlitchEnable() {
             toggleInput = WPAD::WPAD_CL_TRIGGER_ZL;
             break;
         }
-        if ((newInputs & toggleInput) == toggleInput) system->ottHideNames = !system->ottHideNames;
-        if (system->ottHideNames) maxDistance -= maxDistance;
+        if ((newInputs & toggleInput) == toggleInput) system->ottMgr.hideNames = !system->ottMgr.hideNames;
+        if (system->ottMgr.hideNames) maxDistance -= maxDistance;
     }
     RaceBalloons::maxDistanceNames = maxDistance;
 }
@@ -126,15 +134,24 @@ kmWrite24(0x808A9C16, 'PUL'); //item_window_new -> item_window_PUL
 
 const char* ChangeItemWindowPane(ItemId id, u32 itemCount) {
     const bool feather = System::sInstance->IsContext(PULSAR_FEATHER);
-    const bool megaTC = System::sInstance->IsContext(PULSAR_MEGATC);
+    const RKNet::Controller* controller = RKNet::Controller::sInstance;
+    const RKNet::RoomType roomType = controller->roomType;
+    const bool isFroom = roomType == RKNet::ROOMTYPE_FROOM_HOST || roomType == RKNet::ROOMTYPE_FROOM_NONHOST;
+    const bool isPublicOnlineRoom = controller->connectionState != RKNet::CONNECTIONSTATE_SHUTDOWN && !isFroom && roomType != RKNet::ROOMTYPE_NONE;
+    bool MegaTC = System::sInstance->IsContext(PULSAR_MEGATC) && !isPublicOnlineRoom;
+    if (System::sInstance->IsContext(PULSAR_THUNDERCLOUD)) MegaTC = false;
     const char* paneName;
     if (id == BLOOPER && feather) {
-        if (itemCount == 2) paneName = "feather_2";
-        else if (itemCount == 3) paneName = "feather_3";
-        else paneName = "feather";
-    }
-    else if (id == THUNDER_CLOUD && megaTC) paneName = "megaTC";
-    else paneName = GetItemIconPaneName(id, itemCount);
+        if (itemCount == 2)
+            paneName = "feather_2";
+        else if (itemCount == 3)
+            paneName = "feather_3";
+        else
+            paneName = "feather";
+    } else if (id == THUNDER_CLOUD && MegaTC)
+        paneName = "megaTC";
+    else
+        paneName = GetItemIconPaneName(id, itemCount);
     return paneName;
 }
 kmCall(0x807f3648, ChangeItemWindowPane);

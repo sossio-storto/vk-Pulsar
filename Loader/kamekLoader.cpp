@@ -186,18 +186,25 @@ static void LoadKamekBinary(LoaderParams* params, const void* binary, u32 binary
 
         u8 cmd = cmdHeader >> 24;
         u32 address = cmdHeader & 0xFFFFFF;
+        bool shouldApply = true;
         if (address == 0xFFFFFE) {
             // Absolute address
             address = *((u32*)input);
-            if (address < params->relStart && !isDol)
-                continue;
-            else if (address >= params->relStart && isDol)
-                continue;
             input += 4;
+            if (address < params->relStart && !isDol)
+                shouldApply = false;
+            else if (address >= params->relStart && isDol)
+                shouldApply = false;
         } else {
-            if (!isDol) continue;
             // Relative address
             address += text;
+            if (!isDol)
+                shouldApply = false;
+        }
+
+        u32 dummy = 0;
+        if (!shouldApply) {
+            address = (u32)&dummy;
         }
 
         switch (cmd) {
@@ -247,7 +254,9 @@ static void LoadKamekBinary(LoaderParams* params, const void* binary, u32 binary
                 params->OSReport("Unknown command: %d\n", cmd);
         }
 
-        cacheInvalidateAddress(address);
+        if (shouldApply) {
+            cacheInvalidateAddress(address);
+        }
     }
     asmVolatile(sync;);
     asmVolatile(isync;);

@@ -20,6 +20,26 @@ static void ConvertROOMPacketToData(const PulROOM& packet) {
     system->netMgr.racesPerGP = packet.raceCount;
 }
 
+static void WriteBlockedTracksToPacket(PulROOM* packet) {
+    System* system = System::sInstance;
+    if (!system) return;
+
+    const Network::Mgr& netMgr = system->netMgr;
+    const u32 blockingCount = system->GetInfo().GetTrackBlocking();
+
+    const u32 writeCount = (blockingCount < MAX_TRACK_BLOCKING) ? blockingCount : MAX_TRACK_BLOCKING;
+    packet->blockedTrackCount = static_cast<u8>(writeCount);
+    packet->curBlockingArrayIdx = netMgr.curBlockingArrayIdx;
+    packet->lastGroupedTrackPlayed = netMgr.lastGroupedTrackPlayed;
+
+    for (u32 i = 0; i < writeCount; ++i) {
+        packet->blockedTracks[i] = (netMgr.lastTracks != nullptr && netMgr.lastTracks[i] != PULSARID_NONE) ? static_cast<u16>(netMgr.lastTracks[i]) : 0xFFFF;
+    }
+    for (u32 i = writeCount; i < MAX_TRACK_BLOCKING; ++i) {
+        packet->blockedTracks[i] = 0xFFFF;
+    }
+}
+
 static void BeforeROOMSend(RKNet::PacketHolder<PulROOM>* packetHolder, PulROOM* src, u32 len) {
     packetHolder->Copy(src, len); //default
 
@@ -32,55 +52,72 @@ static void BeforeROOMSend(RKNet::PacketHolder<PulROOM>* packetHolder, PulROOM* 
 
         // Save original message before remapping.
         // Messages 4 and 5 are OPT WW and OTT WW starts (added by ExpFroomMessages).
-        // Remap them to 0 so the base game handles them as a normal VS start.
+        // Remap them to 0 or 1 so the base game handles them as a normal VS / Team VS start.
         const u8 originalMessage = destPacket->message;
         if (originalMessage >= 4 && originalMessage <= 9) {
-            destPacket->message = 0;
+            if (originalMessage == 8) { // Item Rain Team VS (8)
+                destPacket->message = 1; // Team VS
+            } else {
+                destPacket->message = 0; // VS
+            }
         }
 
         const u8 isStartVKWW = (originalMessage == 4);
         const u8 isStartOTWW  = (originalMessage == 5);
+        const u8 isStartItemRainWW = (originalMessage == 6);
+        const u8 isStartItemRainVS = (originalMessage == 7);
+        const u8 isStartItemRainTeamVS = (originalMessage == 8);
 
         const Settings::Mgr& settings = Settings::Mgr::Get();
 
         const u8 koSetting = settings.GetSettingValue(Settings::SETTINGSTYPE_KO, SETTINGKO_ENABLED) && destPacket->message == 0; //KO only enabled for normal GPs
+        const u8 koFinal = settings.GetSettingValue(Settings::SETTINGSTYPE_KO, SETTINGKO_FINAL) == KOSETTING_FINAL_ALWAYS;
         //invert mii setting as the first button is enabled, not disabled, so a value of 1 indicates disabled
         const u8 ottOnline = settings.GetSettingValue(Settings::SETTINGSTYPE_OTT, SETTINGOTT_ONLINE);
         destPacket->hostSystemContext = (ottOnline != OTTSETTING_OFFLINE_DISABLED) << PULSAR_MODE_OTT //ott
             | (ottOnline == OTTSETTING_ONLINE_FEATHER) << PULSAR_FEATHER //ott feather
             | (settings.GetSettingValue(Settings::SETTINGSTYPE_OTT, SETTINGOTT_ALLOWUMTS) ^ true) << PULSAR_UMTS //ott umts
             | koSetting << PULSAR_MODE_KO
+            | koFinal << PULSAR_KOFINAL
             | (settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_ALLOW_MIIHEADS) ^ true) << PULSAR_MIIHEADS
             | settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_HOSTWINS) << PULSAR_HAW
+            | (settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_THUNDERCLOUD) == THUNDERCLOUD_NORMAL) << PULSAR_THUNDERCLOUD
             | isStartVKWW << PULSAR_STARTVKWW   // OPT WW start from friend room
-            | isStartOTWW  << PULSAR_STARTOTTWW;  // OTT WW start from friend room
+            | isStartOTWW  << PULSAR_STARTOTTWW  // OTT WW start from friend room
+            | isStartItemRainWW << PULSAR_STARTITEMRAIN
+            | (isStartItemRainWW || isStartItemRainVS || isStartItemRainTeamVS) << PULSAR_ITEMMODERAIN;
 
         u8 raceCount;
         if (koSetting == KOSETTING_ENABLED) raceCount = 0xFE;
         else switch (settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_SCROLL_GP_RACES)) {
-        case(0x2):
+        case(0): // 4 races
+            raceCount = 3;
+            break;
+        case(1): // 8 races
             raceCount = 7;
             break;
-        case(0x4):
+        case(2): // 12 races
             raceCount = 11;
             break;
-        case(0x6):
+        case(3): // 24 races
             raceCount = 23;
             break;
-        case(0x8):
+        case(4): // 32 races
             raceCount = 31;
             break;
-        case(0xA):
+        case(5): // 64 races
             raceCount = 63;
             break;
-        case(0xC):
+        case(6): // 2 races
             raceCount = 1;
             break;
         default:
             raceCount = 3;
         }
         destPacket->raceCount = raceCount;
+        WriteBlockedTracksToPacket(destPacket);
         ConvertROOMPacketToData(*destPacket);
+        system->SetContext(destPacket->hostSystemContext);
     }
 }
 kmCall(0x8065b15c, BeforeROOMSend);
@@ -96,12 +133,21 @@ static void AfterROOMReception(const RKNet::PacketHolder<PulROOM>* packetHolder,
     if (src.messageType == 1 && sub.localAid != sub.hostAid && packetHolder->packetSize == sizeof(PulROOM)) {
         ConvertROOMPacketToData(src);
 
-        // Apply OPT WW / OTT WW contexts locally on all non-host clients.
-        // The host packed these into hostSystemContext in BeforeROOMSend.
+        // Apply host context locally on all non-host clients.
         const u32 hostContext = src.hostSystemContext;
-        const bool isStartVKWW = hostContext & (1 << PULSAR_STARTVKWW);
-        const bool isStartOTWW  = hostContext & (1 << PULSAR_STARTOTTWW);
-        system->SetContext((isStartVKWW << PULSAR_STARTVKWW) | (isStartOTWW << PULSAR_STARTOTTWW));
+        system->SetContext(hostContext);
+
+        // Sync host's blocked tracks to the client
+        const u32 localBlockingCount = system->GetInfo().GetTrackBlocking();
+        if (localBlockingCount > 0 && system->netMgr.lastTracks != nullptr && src.blockedTrackCount > 0) {
+            const u32 copyCount = (src.blockedTrackCount < localBlockingCount) ? src.blockedTrackCount : localBlockingCount;
+            for (u32 i = 0; i < copyCount; ++i) {
+                u16 track = src.blockedTracks[i];
+                system->netMgr.lastTracks[i] = (track == 0xFFFF) ? PULSARID_NONE : static_cast<PulsarId>(track);
+            }
+            system->netMgr.curBlockingArrayIdx = src.curBlockingArrayIdx % localBlockingCount;
+            system->netMgr.lastGroupedTrackPlayed = src.lastGroupedTrackPlayed;
+        }
 
         //Also exit the settings page to prevent weird graphical artefacts
         Page* topPage = SectionMgr::sInstance->curSection->GetTopLayerPage();

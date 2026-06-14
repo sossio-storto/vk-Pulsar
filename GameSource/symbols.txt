@@ -2523,3 +2523,16 @@ GetCharacterVoiceSoundSet__Q25Audio18DriverSoundManagerF11CharacterIdUi = 0x8086
 voiceActionTables__Q25Audio14CharacterActor = 0x808afc18
 sInstance__Q25Audio18DriverSoundManager = 0x809c4740
 detail_GetFileAddress__Q34nw4r3snd18SoundArchivePlayerCFUi = 0x800a1560
+OnBackButtonClick__Q25Pages13WFCModeSelectFR18CtrlMenuBackButtonUi = 0x8064c718
+OnBackPress__Q25Pages13WFCModeSelectFUi = 0x8064c7b0
+
+# Display FC and Country hook symbols
+sInstance__Q25RKNet11USERHandler = 0x809c2108
+saveFcAndCountryHookExit__Fv = 0x806513e4
+saveFcAndCountryInLiveHookExit__Fv = 0x8060a2b4
+displayFcAndCountryHookExit__Fv = 0x807f0050
+displayFcAndCountryInResultHookExit__Fv = 0x807f5300
+displayFcAndCountryInResultFillTimeHookExit__Fv = 0x807f5968
+MD5Digest__FPCUcUiPUc = 0x800f0e08
+sprintf = 0x80011a2c
+PicturePaneExists__15LayoutUIControlFPCc = 0x8063e328

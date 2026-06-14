@@ -10,12 +10,13 @@ namespace Settings {
 
 class Params {
 public:
-    static const int pulsarPageCount = 5; 
-    static const int userPageCount = 1; //in case you want to add user pages, change this and add the corresponding entries in the arrays below
+    static const int pulsarPageCount = 7; 
+    static const int userPageCount = 0; //in case you want to add user pages, change this and add the corresponding entries in the arrays below
     static const int pageCount = pulsarPageCount + userPageCount;
 
-    static const int maxRadioCount = 6; //per page, due to space
-    static const int maxScrollerCount = 5; //per page, due to space
+    static const int maxRadioCount = 8; //per page, due to space
+    static const int maxScrollerCount = 8; //per page, due to space
+    static const int scrollerSettingOffset = 6;
 
     //Pulsar and User
     static u8 radioCount[pageCount];
@@ -32,12 +33,14 @@ enum Type {
     SETTINGSTYPE_HOST,
     SETTINGSTYPE_OTT,
     SETTINGSTYPE_KO,
+    SETTINGSTYPE_FPS,
+    SETTINGSTYPE_UI,
     
 };
 
 //If you want to add settings to your packs, they go in this enum, and GetUserSettingValue should be used to obtain the value of a given setting
 enum UserType {
-    SETTINGSTYPE_RACE1,
+    
 };
 }//namespace Settings
 
@@ -61,15 +64,15 @@ enum RaceSettings {
     SETTINGRACE_SCROLL_SOM = 0 + 6
 };
 
-enum Race1settings {
-    SETTINGRACE1_RADIO_FPS = 0, 
+enum FPSSettings {
+    SETTINGFPS_RADIO_FPS = 0, 
 };
 
 enum HostSettings {
     SETTINGHOST_RADIO_HOSTWINS = 0,
     SETTINGHOST_RADIO_CC = 1,
     SETTINGHOST_ALLOW_MIIHEADS = 2,
-
+    SETTINGHOST_RADIO_THUNDERCLOUD = 3,
     SETTINGHOST_SCROLL_GP_RACES = 0 + 6
 };
 
@@ -79,6 +82,7 @@ enum OTTSettings {
     SETTINGOTT_ALLOWCHANGECOMBO = 2,
     SETTINGOTT_ALLOWUMTS = 3,
     SETTINGOTT_MUTEPTANDPLAYERS = 4,
+    RADIO_OTTMUTEPTANDPLAYERS = 4,
 };
 
 enum KOSettings {
@@ -87,6 +91,10 @@ enum KOSettings {
     SETTINGKO_KOPERRACE = 0 + 6,
     SETTINGKO_RACESPERKO = 1 + 6,
 
+};
+
+enum UISettings {
+    SETTINGUI_SCROLL_HUDCOLOR = 0 + Settings::Params::scrollerSettingOffset
 };
 
 //MENU SETTINGS
@@ -171,6 +179,11 @@ enum HostSettingMiiHeads {
     HOSTSETTING_ALLOW_MIIHEADS_DISABLED
 };
 
+enum ThunderCloud {
+    THUNDERCLOUD_MEGA,
+    THUNDERCLOUD_NORMAL
+};
+
 enum HostSettingGPRACES {
     HOSTSETTING_GP_RACES_4,
     HOSTSETTING_GP_RACES_8,
@@ -230,11 +243,27 @@ enum KOSettingRacesPerKO {
 //KOSETTINGS
 
 
-enum RACE1SettingFPS {
-    RACE1SETTING_FPS_60 = 0x0,
-    RACE1SETTING_FPS_30 = 0x1
+enum FPSSettingFPS {
+    SETTINGFPS_FPS_60 = 0x0,
+    SETTINGFPS_FPS_30 = 0x1
 };
 
+enum UISettingHUDColor {
+    HUDCOLOR_WHITE = 0x0,
+    HUDCOLOR_BLACK = 0x1,
+    HUDCOLOR_RED = 0x2,
+    HUDCOLOR_ORANGE = 0x3,
+    HUDCOLOR_YELLOW = 0x4,
+    HUDCOLOR_GREEN = 0x5,
+    HUDCOLOR_BLUE = 0x6,
+    HUDCOLOR_PURPLE = 0x7,
+    HUDCOLOR_PINK = 0x8,
+    HUDCOLOR_MAGENTA = 0x9,
+    HUDCOLOR_CYAN = 0xA,
+    HUDCOLOR_TEAL = 0xB,
+    HUDCOLOR_GOLD = 0xC,
+    HUDCOLOR_FUNNY = 0xD
+};
 
 }//namespace Pulsar
 

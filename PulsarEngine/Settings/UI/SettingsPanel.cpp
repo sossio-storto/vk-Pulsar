@@ -268,8 +268,8 @@ void SettingsPanel::SaveSettings(bool writeFile) {
         }
         for(int i = 0; i < Settings::Params::scrollerCount[count]; ++i) {
             const u8 value = this->scrollerSettings[count][i];
-            if(isPulsarPage) settings->SetSettingValue(static_cast<Settings::Type>(count), i + Settings::Params::maxRadioCount, value);
-            else settings->SetUserSettingValue(static_cast<Settings::UserType>(count - Settings::Params::pulsarPageCount), i + Settings::Params::maxRadioCount, value);
+            if(isPulsarPage) settings->SetSettingValue(static_cast<Settings::Type>(count), i + Settings::Params::scrollerSettingOffset, value);
+            else settings->SetUserSettingValue(static_cast<Settings::UserType>(count - Settings::Params::pulsarPageCount), i + Settings::Params::scrollerSettingOffset, value);
         }
     }
     settings->Update();

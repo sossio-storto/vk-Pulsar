@@ -33,6 +33,9 @@ public:
     UIControl* CreateControl(u32 id) override;
     void SetButtonHandlers(PushButton& button) override;
 
+    void ClearKickHistory();
+    u32* GetKickHistory(u32& outCount);
+
 private:
     void OnBackPress(u32 hudSlotId);
     void OnButtonClick(PushButton& button, u32 hudSlotId);
@@ -49,6 +52,9 @@ private:
     int playerCount;
 
     int selectedIdx;
+
+    u32 kickedPIDs[64];
+    u32 kickedCount;
 
     PtmfHolder_2A<RoomKickPage, void, u32, PushButton&> onYesNoClickHandler;
 };

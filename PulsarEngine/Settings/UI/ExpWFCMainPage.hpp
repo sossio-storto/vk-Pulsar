@@ -22,15 +22,23 @@ public:
 
 class ExpWFCModeSel : public Pages::WFCModeSelect {
 public:
+    enum SubmenuState {
+        STATE_MAIN = 0,
+        STATE_VS_WW = 1,
+        STATE_OTHER_VS = 2
+    };
+
     ExpWFCModeSel();
-    static void InitOTTButton(ExpWFCModeSel& self);
     static void OnActivatePatch();
+    void SetMenuTextAndRatings();
 private:
     void OnModeButtonSelect(PushButton& modeButton, u32 hudSlotId); //8064c718
     void OnModeButtonClick(PushButton& PushButton, u32 r5);
-    PushButton ottButton;
+    void OnBackButtonClick(PushButton& backButton, u32 hudSlotId);
+    void OnBackPress(u32 hudSlotId);
+    
     u32 lastClickedButton;
-    static const u32 ottButtonId = 4;
+    u32 submenuState;
 };
 }//namespace UI
 }//namespace Pulsar

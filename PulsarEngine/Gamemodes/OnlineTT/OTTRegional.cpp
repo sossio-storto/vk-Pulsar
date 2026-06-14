@@ -5,38 +5,51 @@
 #include <MarioKartWii/UI/Page/Other/Globe.hpp>
 #include <MarioKartWii/UI/Page/Other/WFCMenu.hpp>
 #include <PulsarSystem.hpp>
+#include <Settings/Settings.hpp>
 #include <UI/UI.hpp>
 
 namespace Pulsar {
 namespace Network {
+extern u32 REGIONID;
 
-static const ut::Color colors[5] = { 0xffff00ff, 0x00ff00ff, 0xffa000ff, 0x00ffffff, 0x00a0ffff };
+static const ut::Color colors[5] = {0xffff00ff, 0x00ff00ff, 0xffa000ff, 0x00ffffff, 0x0050ffff};
 
 ut::Color GetFriendColor(u32 friendIdx) {
     RKNet::SearchType type = RKNet::Controller::sInstance->GetFriendSearchType(friendIdx);
     const ut::Color* color = &colors[0];
-    switch(type) {
-        case RKNet::SEARCH_TYPE_VS_WW: return color[0];
-        case RKNet::SEARCH_TYPE_BT_WW: return color[2];
-        case RKNet::SEARCH_TYPE_BT_REGIONAL: return color[3];
+
+    // Get the friend's region
+    const RKNet::Friend* friendData = &RKNet::Controller::sInstance->friends[friendIdx];
+    const u8 friendRegion = friendData->statusData.regionId;
+
+    const bool isSpecialRegion = (friendRegion == 0x0B || friendRegion == 0x0C || friendRegion == 0x0D);
+
+    switch (type) {
+        case RKNet::SEARCH_TYPE_VS_WW:
+            return color[0];
+        case RKNet::SEARCH_TYPE_BT_WW:
+            return color[2];
+        case RKNet::SEARCH_TYPE_BT_REGIONAL:
+            return color[3];
         case RKNet::SEARCH_TYPE_VS_REGIONAL:
-            if(System::sInstance->netMgr.statusDatas[friendIdx]) return color[4];
-            else return color[1];
+            if (isSpecialRegion) {
+                return color[4];
+            } else {
+                return color[1];
+            }
         default:
             return *color;
     }
 }
 
-
-
-//wiimmfi hook forces the u64 trick
+// wiimmfi hook forces the u64 trick
 u64 AddModeToStatusData(const RKNet::StatusData* own) {
     static char customData[9];
     u32 length = 8;
-    if(own->status == RKNet::FRIEND_STATUS_PUBLIC_VS) {
-        if(own->regionId != 0xff) {
+    if (own->status == RKNet::FRIEND_STATUS_PUBLIC_VS) {
+        if (own->regionId != 0xff) {
             length = 9;
-            for(int i = 0; i < 8; ++i) {
+            for (int i = 0; i < 8; ++i) {
                 customData[i] = reinterpret_cast<const u8*>(own)[i];
             }
             customData[8] = System::sInstance->netMgr.ownStatusData;
@@ -49,26 +62,36 @@ u64 AddModeToStatusData(const RKNet::StatusData* own) {
 kmCall(0x8065a0e8, AddModeToStatusData);
 
 u8 ReceiveMode(const DWC::AccFriendData* data, char* dest, int* size) {
-    const u8 ret = DWC::GetFriendStatusData(data, dest, size); //the stack should have enough space that the provided char arg is enough
-    register u8 idx;
+    register u32 idx;
     asm(mr idx, r26;);
+    char temp[32];
+    const u8 ret = DWC::GetFriendStatusData(data, temp, size);
     u8 val = 0;
-    if(*size == 9) {
-        val = dest[8];
+    if (*size >= 9) {
+        val = temp[8];
+    }
+
+    int copySize = *size;
+    if (copySize > 16) copySize = 16;
+    for (int i = 0; i < copySize; ++i) {
+        dest[i] = temp[i];
+    }
+
+    if (*size == 9) {
         *size = 8;
     }
-    System::sInstance->netMgr.statusDatas[idx] = val;
+    if (idx < 30) {
+        System::sInstance->netMgr.statusDatas[idx] = val;
+    }
     return ret;
 }
 kmCall(0x8065a1d4, ReceiveMode);
 
 RKNet::SearchType SetModeOnJoin(const RKNet::Controller& controller, u32 friendIdx) {
     RKNet::SearchType type = controller.GetFriendSearchType(friendIdx);
-    if(RKNet::SEARCH_TYPE_VS_REGIONAL) {
-        bool isOTT = false;
+    if (type == RKNet::SEARCH_TYPE_VS_REGIONAL) {
         Mgr& netMgr = System::sInstance->netMgr;
-        if(netMgr.statusDatas[friendIdx] == true) isOTT = true;
-        netMgr.ownStatusData = isOTT;
+        netMgr.ownStatusData = netMgr.statusDatas[friendIdx];
     }
     return type;
 }
@@ -78,14 +101,13 @@ static u8 friendStatusButtonUsedIdx;
 asmFunc FriendStatusUsedIdx() {
     ASM(
         nofralloc;
-    mr r30, r28;
-    lis r12, friendStatusButtonUsedIdx@ha;
-    stb r29, friendStatusButtonUsedIdx@l(r12);
-    blr;
-        )
+        mr r30, r28;
+        lis r12, friendStatusButtonUsedIdx @ha;
+        stb r29, friendStatusButtonUsedIdx @l(r12);
+        blr;)
 }
 kmCall(0x8064b548, FriendStatusUsedIdx);
-kmCall(0x8064de54, FriendStatusUsedIdx); //after race
+kmCall(0x8064de54, FriendStatusUsedIdx);  // after race
 
 void WifiMenuButtonColor(LayoutUIControl& control, u32 friendIdx) {
     ut::Color color = GetFriendColor(friendIdx);
@@ -117,16 +139,15 @@ void WifiMenuButtonColor(LayoutUIControl& control, u32 friendIdx) {
 
 void FriendStatusButtonColor(AnimationGroup& group, u32 idx, float frame) {
     group.PlayAnimationAtFrame(idx, frame);
-    if(idx == 1) { //MEET anm
+    if (idx == 1) {  // MEET anm
         register LayoutUIControl* button;
         asm(mr button, r27;);
         WifiMenuButtonColor(*button, friendStatusButtonUsedIdx);
     }
 }
 kmCall(0x8064b5e8, FriendStatusButtonColor);
-kmCall(0x8064de98, FriendStatusButtonColor); //after race
+kmCall(0x8064de98, FriendStatusButtonColor);  // after race
 kmWrite32(0x8064b560, 0x60000000);
-
 
 void FriendButtonWindowColor(FriendButton& button) {
     ut::Color color = GetFriendColor(button.friendIdx);
@@ -143,7 +164,7 @@ void FriendButtonWindowColor(FriendButton& button) {
     smiley->vertexColours[2] = color;
     smiley->vertexColours[3] = color;
     UI::UnbindRLMC(smiley->material);
-    //UI::ResetMatColor(smiley); don't do that as this is a light
+    // UI::ResetMatColor(smiley); don't do that as this is a light
     lyt::Material* border = reinterpret_cast<lyt::Window*>(button.layout.GetPaneByName("Window_00"))->frames->material;
     border->tevColours[0].r = color.r;
     border->tevColours[0].g = color.g;
@@ -152,72 +173,91 @@ void FriendButtonWindowColor(FriendButton& button) {
     UI::UnbindRLMC(border);
 }
 
-
-
 void FriendButtonColorOnActivate(AnimationGroup& group, u32 idx, float frame) {
     group.PlayAnimationAtFrame(idx, frame);
     register FriendButton* button;
     asm(mr button, r30;);
-    if(button->status == 4) FriendButtonWindowColor(*button);
+    if (button->status == 4) FriendButtonWindowColor(*button);
 }
 bool FriendButtonColorOnUpdate(FriendButton& button, u32 idx, float frame) {
     register u32 status;
     asm(mr status, r31;);
-    if(status == 4) FriendButtonWindowColor(button);
+    if (status == 4) FriendButtonWindowColor(button);
     return button.IsSelected();
 }
 kmCall(0x805d3b40, FriendButtonColorOnActivate);
 kmCall(0x805d3d1c, FriendButtonColorOnUpdate);
 
-kmWrite32(0x805d60e4, 0x7fe3fb78); //nop to preserve the page
+kmWrite32(0x805d60e4, 0x7fe3fb78);  // nop to preserve the page
 kmWrite32(0x805d61a0, 0x7fc3f378);
 void JoinButtonColor(Pages::FriendInfo& info, u32 status) {
     info.joinButton.SetStatus(status);
-    if(status >= 0x15 && status <= 0x18) {
+    if (status >= 0x15 && status <= 0x18) {
         WifiMenuButtonColor(info.joinButton, info.selectedFriendIdx);
     }
 };
 kmCall(0x805d60e8, JoinButtonColor);
 kmCall(0x805d61a8, JoinButtonColor);
 
-
 void SetGlobeMsgColor(Pages::Globe::MessageWindow& msg, ut::Color color) {
-    static const char* suffixes[5] = { "c", "normal_l", "normal_r", "l", "r" };
+    static const char* suffixes[5] = {"c", "normal_l", "normal_r", "l", "r"};
     char paneName[20];
-    for(int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 5; ++i) {
         snprintf(paneName, 20, "window_%s", suffixes[i]);
         lyt::Picture* picture = reinterpret_cast<lyt::Picture*>(msg.layout.GetPaneByName(paneName));
         picture->vertexColours[0] = color;
         picture->vertexColours[1] = color;
         picture->vertexColours[2] = color;
         picture->vertexColours[3] = color;
-        if(color == -1) continue;
+        if (color == -1) continue;
         UI::ResetMatColor(picture, 0);
         UI::UnbindRLMC(picture->material);
-        //lyt::Material* mat = picture->material;
-        //mat->tevColours[1].r = color.r;
-        //mat->tevColours[1].g = color.g;
-        //mat->tevColours[1].b = color.b;
     }
 }
 
 void GlobeMsgColor(Pages::Globe::MessageWindow& msg, u32 bmgId, Text::Info* info) {
     register Pages::Globe* globe;
     asm(mr globe, r31;);
-    if(System::sInstance->netMgr.statusDatas[globe->selFriendIdx] == true) bmgId = UI::BMG_OTT_PLAYING;
+
+    // Get the friend's region
+    const RKNet::Friend* friendData = &RKNet::Controller::sInstance->friends[globe->selFriendIdx];
+    const u8 friendRegion = friendData->statusData.regionId;
+
+    // Set appropriate BMG based on region
+    if (friendRegion == 0xB) {
+        bmgId = UI::BMG_OTT_PLAYING;
+    } else if (friendRegion == 0xC) {
+        bmgId = UI::BMG_200_PLAYING;
+    } else if (friendRegion == 0xD) {
+        bmgId = UI::BMG_ITEM_RAIN_PLAYING;
+    }
+
     msg.SetMessage(bmgId, info);
     ut::Color color;
-    if(globe->curSelFriendStatus >= 0x15 && globe->curSelFriendStatus <= 0x18) color = GetFriendColor(globe->selFriendIdx);
-    else color = -1;
+    if (globe->curSelFriendStatus >= 0x15 && globe->curSelFriendStatus <= 0x18)
+        color = GetFriendColor(globe->selFriendIdx);
+    else
+        color = -1;
     SetGlobeMsgColor(globe->message, color);
 }
 kmCall(0x805e504c, GlobeMsgColor);
 
 void GlobeSearchTopMsg(CtrlMenuPageTitleText& title, u32 bmgId, Text::Info* info) {
-    if(System::sInstance->netMgr.ownStatusData == true) bmgId = UI::BMG_OTT_TITLE_TEXT;
+    if (REGIONID == 0x0A)
+        bmgId = UI::BMG_TITLE_TEXT_RT;
+    else if (REGIONID == 0x0B)
+        bmgId = UI::BMG_OTT_TITLE_TEXT;
+    else if (REGIONID == 0x0C)
+        bmgId = UI::BMG_200_TITLE_TEXT;
+    else if (REGIONID == 0x0D)
+        bmgId = UI::BMG_ITEM_RAIN_TITLE_TEXT;
+    else if (REGIONID == 0x14)
+        bmgId = UI::BMG_TITLE_TEXT_CT;
+    else if (REGIONID == 0x15)
+        bmgId = UI::BMG_TITLE_TEXT_REGS;
     title.SetMessage(bmgId, info);
 }
 kmCall(0x80608658, GlobeSearchTopMsg);
 
-}//namespace Network
-}//namespace Pulsar
+}  // namespace Network
+}  // namespace Pulsar

@@ -12,12 +12,13 @@
 #include <Config.hpp>
 #include <Network/Network.hpp>
 #include <Network/MatchCommand.hpp>
-
+#include <Gamemodes/OnlineTT/OnlineTT.hpp>
 
 namespace Pulsar {
 namespace KO {
 class Mgr;
 }//namespace KO
+
 
 class ConfigFile;
 
@@ -28,12 +29,18 @@ enum Context {
     PULSAR_FEATHER,
     PULSAR_UMTS,
     PULSAR_MEGATC,
+    PULSAR_THUNDERCLOUD,
     PULSAR_HAW,
     PULSAR_MIIHEADS,
     PULSAR_MODE_OTT,
     PULSAR_MODE_KO,
     PULSAR_STARTVKWW,  
     PULSAR_STARTOTTWW, 
+    PULSAR_STARTITEMRAIN,
+    PULSAR_ITEMMODERAIN,
+    PULSAR_ITEMMODESTORM,
+    PULSAR_ALLITEMSCANLAND,
+    PULSAR_KOFINAL,
     PULSAR_CONTEXT_COUNT,
 };
 
@@ -49,7 +56,6 @@ private:
     void InitIO(IOType type) const;
     void InitCups(const ConfigFile& conf);
     void InitSettings(const u16* totalTrophyCount) const;
-    void UpdateContext();
 protected:
     //Virtual
     virtual void AfterInit() {};
@@ -64,12 +70,14 @@ public:
     const Info& GetInfo() const { return this->info; }
 
     bool IsContext(Context context) const { return (this->context & (1 << context)) != 0; }
+    u32 GetContext() const { return this->context; }
     void ClearContext() { this->context = 0; } 
     void SetContext(u32 ctx) { this->context = ctx; }
     static s32 OnSceneEnter(Random& random);
 
     const char* GetModFolder() const { return modFolderName; }
     static void CreateSystem();
+    void UpdateContext();
 
     //Network
     static asmFunc GetRaceCount();
@@ -111,8 +119,7 @@ public:
 
     //Modes
     KO::Mgr* koMgr;
-    u32 ottVoteState;
-    bool ottHideNames;
+    OTT::Mgr ottMgr;
     u8 nonTTGhostPlayersCount; //because a ghost can be added in vs, racedata's playercount is not reliable
 
 private:

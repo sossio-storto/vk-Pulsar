@@ -33,10 +33,16 @@ kmCall(0x80659788, PatchRegion);
 
 //kmWrite32(0x8065a038, 0x7C050378);
 //kmWrite32(0x8065a084, 0x7C050378);
+extern u32 REGIONID;
 static int GetFriendsSearchType(int curType, u32 regionId) {
     register u8 friendRegionId;
     asm(mr friendRegionId, r0;);
     u8 region = System::sInstance->GetInfo().GetWiimmfiRegion();
+    if (region == 0x68 || region == 0x69 || region == 0x0D ||
+        friendRegionId == 0x68 || friendRegionId == 0x69 || friendRegionId == 0x0D) {
+        if (curType == 7) return 6;
+        return 9;
+    }
     if(region != friendRegionId) return curType;
     else if(curType == 7) return 6;
     else return 9;
@@ -47,7 +53,7 @@ kmBranch(0x8065a088, GetFriendsSearchType);
 
 
 static u32 PatchRKNetControllerRegion() {
-    return System::sInstance->GetInfo().GetWiimmfiRegion();
+    return REGIONID;
 }
 kmCall(0x80653640, PatchRKNetControllerRegion);
 kmWrite32(0x80653644, 0x7c651b78);

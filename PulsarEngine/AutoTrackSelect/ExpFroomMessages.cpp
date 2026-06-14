@@ -11,8 +11,8 @@ s32 ExpFroomMessages::clickedButtonIdx = 0;
 
 void ExpFroomMessages::OnModeButtonClick(PushButton& button, u32 hudSlotId) {
     this->clickedButtonIdx = button.buttonId;
-    // WW modes (4 = VK WW, 5 = OTT WW) bypass track selection entirely
-    if (button.buttonId >= 4) {
+    // WW modes (4 = VK WW, 5 = OTT WW, 6 = Item Rain WW) bypass track selection entirely
+    if (button.buttonId == 4 || button.buttonId == 5 || button.buttonId == 6) {
         Pages::FriendRoomMessages::OnModeButtonClick(button, hudSlotId);
         return;
     }
@@ -24,7 +24,7 @@ void ExpFroomMessages::OnCourseButtonClick(PushButton& button, u32 hudSlotId) {
     u32 clickedIdx = clickedButtonIdx;
     s32 id = button.buttonId;
     PulsarId pulsarId = static_cast<PulsarId>(id);
-    if (clickedIdx < 2) {
+    if (clickedIdx == 0 || clickedIdx == 1 || clickedIdx == 7 || clickedIdx == 8) {
         if (id == this->msgCount - 1) {
             pulsarId = cupsConfig->RandomizeTrack();
         }
@@ -35,7 +35,7 @@ void ExpFroomMessages::OnCourseButtonClick(PushButton& button, u32 hudSlotId) {
     }
     else pulsarId = static_cast<PulsarId>(pulsarId + 0x20U); //Battle
     cupsConfig->SetWinning(pulsarId);
-    PushButton& clickedButton = this->messages[0].buttons[clickedIdx];
+    PushButton& clickedButton = this->messages[0].buttons[0]; // Avoid out of bounds with clickedIdx >= 4
     clickedButton.buttonId = clickedIdx;
     Pages::FriendRoomMessages::OnModeButtonClick(clickedButton, 0);
 }
@@ -46,20 +46,22 @@ static void OnStartButtonFroomMsgActivate() {
 
     if (!Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_HOSTWINS)) {
         msg->onModeButtonClickHandler.ptmf = &Pages::FriendRoomMessages::OnModeButtonClick;
-        msg->msgCount = 6; // 4 standard + VK WW (4) + OTT WW (5)
+        msg->msgCount = 9; // 4 standard + VK WW (4) + OTT WW (5) + Item Rain WW (6) + Item Rain VS (7) + Item Rain Team VS (8)
     }
     else {
         for (int i = 0; i < 4; ++i) msg->messages[0].buttons[i].HandleDeselect(0, -1);
         if (msg->isOnModeSelection) {
             msg->isOnModeSelection = false;
-            if (msg->clickedButtonIdx >= 4) return; // WW VKions already handled
-            if (msg->clickedButtonIdx >= 2) msg->msgCount = 10;
-            else msg->msgCount = CupsConfig::sInstance->GetEffectiveTrackCount() + 1;
+            if (msg->clickedButtonIdx == 4 || msg->clickedButtonIdx == 5 || msg->clickedButtonIdx == 6) return; // WW VKions already handled
+            if (msg->clickedButtonIdx == 0 || msg->clickedButtonIdx == 1 || msg->clickedButtonIdx == 7 || msg->clickedButtonIdx == 8) {
+                msg->msgCount = CupsConfig::sInstance->GetEffectiveTrackCount() + 1;
+            }
+            else msg->msgCount = 10;
             msg->onModeButtonClickHandler.ptmf = &ExpFroomMessages::OnCourseButtonClick;
         }
         else {
             msg->isOnModeSelection = true;
-            msg->msgCount = 6; // 4 standard + VK WW (4) + OTT WW (5)
+            msg->msgCount = 9; // 4 standard + VK WW (4) + OTT WW (5) + Item Rain WW (6) + Item Rain VS (7) + Item Rain Team VS (8)
             msg->onModeButtonClickHandler.ptmf = &ExpFroomMessages::OnModeButtonClick;
         }
     }
@@ -93,6 +95,9 @@ u32 CorrectModeButtonsBMG(const RKNet::ROOMPacket& packet) {
     // WW VKions always checked first using absolute index
     if (absRowIdx == 4) return BMG_VKWW_START_MESSAGE;
     if (absRowIdx == 5) return BMG_OTTWW_START_MESSAGE;
+    if (absRowIdx == 6) return BMG_ITEMRAIN_WW_START_MESSAGE;
+    if (absRowIdx == 7) return BMG_ITEMRAIN_VS_START_MESSAGE;
+    if (absRowIdx == 8) return BMG_ITEMRAIN_TEAM_VS_START_MESSAGE;
 
     // Hostwins track/battle selection phase
     const bool hostwins = Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_HOSTWINS);
@@ -124,6 +129,7 @@ void CorrectRoomStartButton(Pages::Globe::MessageWindow& control, u32 bmgId, Tex
         const u32 hostContext   = System::sInstance->netMgr.hostContext;
         const bool isStartVKWW = hostContext & (1 << PULSAR_STARTVKWW);
         const bool isStartOTTWW = hostContext & (1 << PULSAR_STARTOTTWW);
+        const bool isStartItemRain = hostContext & (1 << PULSAR_STARTITEMRAIN);
         const bool isOTT        = hostContext & (1 << PULSAR_MODE_OTT);
         const bool isKO         = hostContext & (1 << PULSAR_MODE_KO);
 
@@ -132,6 +138,9 @@ void CorrectRoomStartButton(Pages::Globe::MessageWindow& control, u32 bmgId, Tex
         }
         else if (isStartOTTWW) {
             bmgId = BMG_OTTWW_START_MESSAGE;
+        }
+        else if (isStartItemRain) {
+            bmgId = BMG_ITEMRAIN_WW_START_MESSAGE;
         }
         else if (isOTT || isKO) {
             const bool isTeam = bmgId == BMG_PLAY_TEAM_GP;
