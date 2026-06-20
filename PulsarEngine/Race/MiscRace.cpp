@@ -43,17 +43,11 @@ kmCall(0x80799808, SetStartingItem);
 //From JoshuaMK, ported to C++ by Brawlbox and adapted as a setting
 static int MiiHeads(Racedata* racedata, u32 unused, u32 unused2, u8 id) {
     CharacterId charId = racedata->racesScenario.players[id].characterId;
-    bool miiHeadFroom = HOSTSETTING_ALLOW_MIIHEADS_ENABLED;
-    bool isFroom = RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_HOST || RKNet::Controller::sInstance->roomType == RKNet::ROOMTYPE_FROOM_NONHOST;
-    if (isFroom)
-        miiHeadFroom = System::sInstance->IsContext(PULSAR_MIIHEADS) ? HOSTSETTING_ALLOW_MIIHEADS_ENABLED : HOSTSETTING_ALLOW_MIIHEADS_DISABLED;
-    if (Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_FPS, SETTINGHOST_ALLOW_MIIHEADS) == RACESETTING_MII_ENABLED && isFroom) {
-        if (miiHeadFroom == HOSTSETTING_ALLOW_MIIHEADS_ENABLED) {
+    PlayerType type = racedata->racesScenario.players[id].playerType;
+    if (Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_RACE, SETTINGRACE_RADIO_MII) == RACESETTING_MII_ENABLED) {
+        if (type == PLAYER_REAL_LOCAL || type == PLAYER_REAL_ONLINE || type == PLAYER_GHOST) {
             if (charId < MII_M) {
-                if (id == 0)
-                    charId = MII_M;
-                else if (RKNet::Controller::sInstance->connectionState != 0)
-                    charId = MII_M;
+                charId = MII_M;
             }
         }
     }
@@ -104,9 +98,7 @@ kmWrite32(0x807F4DB8, 0x38000001);
 
 //Draggable blue shells
 static void DraggableBlueShells(Item::PlayerObj& sub) {
-    if (Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_RACE, SETTINGRACE_RADIO_BLUES) == RACESETTING_DRAGGABLE_BLUES_DISABLED) {
-        sub.isNotDragged = true;
-    }
+    sub.isNotDragged = false;
 }
 kmBranch(0x807ae8ac, DraggableBlueShells);
 

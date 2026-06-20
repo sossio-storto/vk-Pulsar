@@ -277,7 +277,7 @@ kmRegionWrite32(0x80604094, 0x4800001c, 'E');
 
 // VanzaKart WWFC pack identification
 kmWrite32(0x800017D0, 0x68);   // pack_id
-kmWrite32(0x800017D4, 110);      // pack_version
+kmWrite32(0x800017D4, 105);      // pack_version
 
 const char System::pulsarString[] = "/Pulsar";
 const char System::CommonAssets[] = "/CommonAssets.szs";

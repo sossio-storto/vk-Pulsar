@@ -13,6 +13,8 @@
 Inspired by VSRaceSettings but does not extend it as I wanted a custom amount of radioControls/scrollers depending on the page
 */
 
+#include <MarioKartWii/UI/Layout/ControlGroup.hpp>
+
 namespace Pulsar {
 namespace UI {
 /*
@@ -61,8 +63,13 @@ private:
     int GetNextSheetIdx(s32 direction); //1 for right, -1 for left
     int GetNextBMGOffset(s32 direction);
     u32 GetTextId(const TextUpDownValueControl::TextControl& text) const {
-        TextUpDownValueControl* valueControl = static_cast<TextUpDownValueControl*>(text.parentGroup->parentControl);
-        return static_cast<int>(reinterpret_cast<u32>(valueControl) - reinterpret_cast<u32>(&this->textUpDown[0])) / sizeof(TextUpDownValueControl);
+        const UIControl* parent = text.parentGroup->parentControl;
+        for(u32 i = 0; i < Settings::Params::maxScrollerCount; ++i) {
+            if(static_cast<const UIControl*>(&this->textUpDown[i]) == parent) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     RadioButtonControl radioButtonControls[Settings::Params::maxRadioCount]; //0x6C4

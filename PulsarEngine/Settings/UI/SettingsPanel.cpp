@@ -5,6 +5,8 @@
 #include <Settings/UI/ExpWFCMainPage.hpp>
 #include <SlotExpansion/CupsConfig.hpp>
 
+extern "C" void OSReport(const char* format, ...);
+
 namespace Pulsar {
 namespace UI {
 
@@ -206,7 +208,7 @@ void SettingsPanel::OnActivate() {
             scroller.curSelectedOption = this->scrollerSettings[this->sheetIdx][i];
             u32 bmgCategory = this->bmgOffset + BMG_SCROLLER_SETTINGS + (this->catIdx << 12);
             scroller.SetMessage(scroller.id + bmgCategory);
-            valueControl.activeTextValueControl->SetMessage((scroller.id + 1 << 4) + bmgCategory);
+            scroller.SelectInitial(scroller.curSelectedOption);
         }
 
 
@@ -258,16 +260,19 @@ void SettingsPanel::SaveSettings(bool writeFile) {
     const ExpSection* section = ExpSection::GetSection();
     Settings::Mgr* settings = Settings::Mgr::sInstance;
 
+    OSReport("[SettingsPanel] SaveSettings starting...\n");
     for(int count = 0; count < Settings::Params::pageCount; ++count) {
 
         const bool isPulsarPage = count < Settings::Params::pulsarPageCount;
         for(int i = 0; i < Settings::Params::radioCount[count]; ++i) {
             const u8 value = this->radioSettings[count][i];
+            OSReport("[SettingsPanel]   Page %d, Radio %d = %d\n", count, i, value);
             if(isPulsarPage) settings->SetSettingValue(static_cast<Settings::Type>(count), i, value);
             else settings->SetUserSettingValue(static_cast<Settings::UserType>(count - Settings::Params::pulsarPageCount), i, value);
         }
         for(int i = 0; i < Settings::Params::scrollerCount[count]; ++i) {
             const u8 value = this->scrollerSettings[count][i];
+            OSReport("[SettingsPanel]   Page %d, Scroller %d = %d (offset %d)\n", count, i, value, i + Settings::Params::scrollerSettingOffset);
             if(isPulsarPage) settings->SetSettingValue(static_cast<Settings::Type>(count), i + Settings::Params::scrollerSettingOffset, value);
             else settings->SetUserSettingValue(static_cast<Settings::UserType>(count - Settings::Params::pulsarPageCount), i + Settings::Params::scrollerSettingOffset, value);
         }
@@ -324,9 +329,18 @@ void SettingsPanel::OnUpDownClick(UpDownControl& upDownControl, u32 hudSlotId) {
 }
 
 void SettingsPanel::OnTextChange(TextUpDownValueControl::TextControl& text, u32 optionId) {
+    if(this->currentState < STATE_ACTIVATING) {
+        return;
+    }
 
     const u32 bmgId = this->bmgOffset + BMG_SCROLLER_SETTINGS + (this->catIdx << 12) + optionId;
     u32 id = this->GetTextId(text);
+    OSReport("[SettingsPanel] OnTextChange: text=%p, parentGroup=%p, parentControl=%p, id=%d, optionId=%d\n",
+             &text, text.parentGroup, text.parentGroup ? text.parentGroup->parentControl : nullptr, id, optionId);
+    for(u32 i = 0; i < Settings::Params::maxScrollerCount; ++i) {
+        OSReport("[SettingsPanel]   scroller %d: textUpDown=%p, UIControl=%p\n",
+                 i, &this->textUpDown[i], static_cast<const UIControl*>(&this->textUpDown[i]));
+    }
     this->scrollerSettings[this->sheetIdx][id] = optionId;
 
     text.SetMessage(bmgId + (id + 1 << 4));

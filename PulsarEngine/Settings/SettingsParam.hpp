@@ -10,7 +10,7 @@ namespace Settings {
 
 class Params {
 public:
-    static const int pulsarPageCount = 7; 
+    static const int pulsarPageCount = 5; 
     static const int userPageCount = 0; //in case you want to add user pages, change this and add the corresponding entries in the arrays below
     static const int pageCount = pulsarPageCount + userPageCount;
 
@@ -33,8 +33,6 @@ enum Type {
     SETTINGSTYPE_HOST,
     SETTINGSTYPE_OTT,
     SETTINGSTYPE_KO,
-    SETTINGSTYPE_FPS,
-    SETTINGSTYPE_UI,
     
 };
 
@@ -51,21 +49,18 @@ enum MenuSettings {
     SETTINGMENU_RADIO_LAYOUT = 1,
     SETTINGMENU_RADIO_MUSIC = 2,
     SETTINGMENU_RADIO_INPUTVIEWER = 3,
-    SETTINGMENU_SCROLL_BOOT = 0 + 6
+    SETTINGMENU_SCROLL_BOOT = 0 + 6,
+    SETTINGMENU_SCROLL_HUDCOLOR = 1 + 6
 };
 
 enum RaceSettings {
     SETTINGRACE_RADIO_MII,
     SETTINGRACE_RADIO_SPEEDUP,
     SETTINGRACE_RADIO_BATTLE,
-    SETTINGRACE_RADIO_BLUES,
+    SETTINGRACE_RADIO_FPS,
     SETTINGRACE_RADIO_SOM,
 
     SETTINGRACE_SCROLL_SOM = 0 + 6
-};
-
-enum FPSSettings {
-    SETTINGFPS_RADIO_FPS = 0, 
 };
 
 enum HostSettings {
@@ -91,10 +86,6 @@ enum KOSettings {
     SETTINGKO_KOPERRACE = 0 + 6,
     SETTINGKO_RACESPERKO = 1 + 6,
 
-};
-
-enum UISettings {
-    SETTINGUI_SCROLL_HUDCOLOR = 0 + Settings::Params::scrollerSettingOffset
 };
 
 //MENU SETTINGS
@@ -261,8 +252,7 @@ enum UISettingHUDColor {
     HUDCOLOR_MAGENTA = 0x9,
     HUDCOLOR_CYAN = 0xA,
     HUDCOLOR_TEAL = 0xB,
-    HUDCOLOR_GOLD = 0xC,
-    HUDCOLOR_FUNNY = 0xD
+    HUDCOLOR_GOLD = 0xC
 };
 
 }//namespace Pulsar

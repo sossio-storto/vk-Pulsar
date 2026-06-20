@@ -10,10 +10,6 @@
 namespace Pulsar {
 namespace Codes {
 
-// ═══════════════════════════════════════════════════════════
-// 🎨 VISUAL / UI CODES
-// ═══════════════════════════════════════════════════════════
-
 // Remove Background Blur [Davidevgen]
 kmWrite32(0x80258184, 0x30);
 
@@ -28,23 +24,6 @@ kmWrite32(0x806335B0, 0x3860021A);
 
 // No Shell Tail Dissolve [Ro]
 // kmWrite32(0x8068DD68, 0x38600000);
-
-kmWrite32(0x80895CC0, 0x00FF00FD);
-kmWrite32(0x80895CC4, 0x00FF00FD);
-kmWrite32(0x80895CC8, 0x00FF00FD);
-kmWrite32(0x80895CCC, 0x00FF00FD);
-kmWrite32(0x80895CD0, 0x00FF00FD);
-kmWrite32(0x80895CD4, 0x00FF0046);
-kmWrite32(0x80895CD8, 0x00FF00FF);
-kmWrite32(0x80895CDC, 0x00FF00FF);
-kmWrite32(0x80895CE0, 0x00FF00FF);
-kmWrite32(0x80895CE4, 0x00FF00FF);
-kmWrite32(0x80895CE8, 0x00FF00FF);
-kmWrite32(0x80895CEC, 0x00FF0046);
-
-// ═══════════════════════════════════════════════════════════
-// 🎮 GAMEPLAY CODES
-// ═══════════════════════════════════════════════════════════
 
 // Mushroom Glitch Fix [Vabold]
 kmWrite8(0x807BA077, 0x00);
@@ -71,10 +50,6 @@ asmFunc StarOffroadFix() {
         blr;)
 }
 kmCall(0x8057C3F8, StarOffroadFix);
-
-// ═══════════════════════════════════════════════════════════
-// 🌐 ONLINE CODES
-// ═══════════════════════════════════════════════════════════
 
 // No Disconnect on Countdown [_tZ]
 // Prevents disconnect during countdown
@@ -126,9 +101,6 @@ asmFunc friendRoomJoinCancel() {
 }
 kmCall(0x805DD85C, friendRoomJoinCancel);
 
-// ═══════════════════════════════════════════════════════════
-// 📊 VR SYSTEM CHANGES
-// ═══════════════════════════════════════════════════════════
 
 // Change VR Limit to 30000 [XeR]
 // Default is 9999
@@ -147,6 +119,18 @@ kmWrite16(0x808565BA, 0x00007530);
 kmWrite16(0x808565C2, 0x00007530);
 kmWrite16(0x8085C322, 0x00007530);
 kmWrite16(0x8085C32A, 0x00007530);
+
+//Remove WW Button [Chadderz]
+kmWrite16(0x8064B982, 0x00000005);
+kmWrite32(0x8064BA10, 0x60000000);
+kmWrite32(0x8064BA38, 0x60000000);
+kmWrite32(0x8064BA50, 0x60000000);
+kmWrite32(0x8064BA5C, 0x60000000);
+kmWrite16(0x8064BC12, 0x00000001);
+kmWrite16(0x8064BC3E, 0x00000484);
+kmWrite16(0x8064BC4E, 0x000010D7);
+kmWrite16(0x8064BCB6, 0x00000484);
+kmWrite16(0x8064BCC2, 0x000010D7);
 
 }  // namespace Codes
 }  // namespace Pulsar

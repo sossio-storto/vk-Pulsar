@@ -125,8 +125,13 @@ void ExpSection::CreatePulPages() {
     }
 }
 
-void ExpSection::CreateAndInitPage(ExpSection& self, u32 id) {
+extern "C" void OSReport(const char* format, ...);
 
+void ExpSection::CreateAndInitPage(ExpSection& self, u32 id) {
+    OSReport("[Pulsar] CreateAndInitPage: id=%d, HUD Color setting=%d, Boot setting=%d\n", 
+             id, 
+             Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_MENU, SETTINGMENU_SCROLL_HUDCOLOR),
+             Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_MENU, SETTINGMENU_SCROLL_BOOT));
 
     Page* page;
     PageId initId = static_cast<PageId>(id); //in case a pulpage wants a specific init id

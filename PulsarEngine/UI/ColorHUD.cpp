@@ -1,5 +1,6 @@
 #include <VanzaKart.hpp>
 #include <Settings/Settings.hpp>
+#include <core/nw4r/lyt/Pane.hpp>
 
 namespace Pulsar {
 namespace UI {
@@ -27,20 +28,13 @@ static const u8 hudColors[13][3] = {
 
 void UpdateHUDColor() {
     static u8 lastSetting = 255;
-    u8 setting = Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_UI, SETTINGUI_SCROLL_HUDCOLOR);
+    u8 setting = Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_MENU, SETTINGMENU_SCROLL_HUDCOLOR);
     
     if (!colorInitialized || setting != lastSetting) {
-        // #b00b69 hehe xDDDDDDDDDDDDDDDDDD
-        if (setting == 13) {
-            hudR = 176;
-            hudG = 11;
-            hudB = 105;
-        } else {
-            if (setting > 13) setting = 0;
-            hudR = hudColors[setting][0];
-            hudG = hudColors[setting][1];
-            hudB = hudColors[setting][2];
-        }
+        if (setting > 12) setting = 0;
+        hudR = hudColors[setting][0];
+        hudG = hudColors[setting][1];
+        hudB = hudColors[setting][2];
         lastSetting = setting;
         colorInitialized = true;
     }
@@ -68,6 +62,23 @@ void GetHUDBaseColor(void* self, RGBA16* c) {
     c->alpha = 0x46;
 }
 kmBranch(0x805f04d8, GetHUDBaseColor);
+
+void GetHUDRaceColor(nw4r::lyt::Pane* _this, u32 idx, nw4r::ut::Color color) {
+    UpdateHUDColor();
+    if (idx < 2) {
+        color.r = hudR;
+        color.g = hudG;
+        color.b = hudB;
+        color.a = 0xFD;
+    } else {
+        color.r = hudR > 20 ? hudR - 20 : 0;
+        color.g = hudG > 20 ? hudG - 20 : 0;
+        color.b = hudB > 20 ? hudB - 20 : 0;
+        color.a = 0xFD;
+    }
+    _this->SetVtxColor(idx, color);
+}
+kmCall(0x807ec1dc, GetHUDRaceColor);
 
 }
 }

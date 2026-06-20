@@ -370,6 +370,8 @@ static s32 CompareWholeFileBasenames(const char* lhs, const char* rhs) {
 static bool DecodeOverrideRelativePath(char* dest, u32 destSize, const char* src);
 static bool TryParseArchiveTag(const char* relativePath, char* strippedName, u32 strippedNameSize,
                                char* archiveTagLower, u32 archiveTagLowerSize);
+static bool TryParseDirectoryArchiveTag(const char* relativePath, char* strippedName, u32 strippedNameSize,
+                                        char* archiveTagLower, u32 archiveTagLowerSize);
 static bool ExtractTaggedOverrideMetadata(const char* relativePath, char* strippedName, u32 strippedNameSize,
                                           char* archiveTagLower, u32 archiveTagLowerSize, bool& outIsDelete);
 static bool BuildOverridePathWithRoot(const char* root, const char* name, const char* tag, char* outPath, u32 outSize);
@@ -789,7 +791,11 @@ static bool DecodeOverrideRelativePath(char* dest, u32 destSize, const char* src
 static bool ExtractTaggedOverrideMetadata(const char* relativePath, char* strippedName, u32 strippedNameSize,
                                           char* archiveTagLower, u32 archiveTagLowerSize, bool& outIsDelete) {
     outIsDelete = false;
-    if (!TryParseArchiveTag(relativePath, strippedName, strippedNameSize, archiveTagLower, archiveTagLowerSize)) {
+    bool parsed = TryParseArchiveTag(relativePath, strippedName, strippedNameSize, archiveTagLower, archiveTagLowerSize);
+    if (!parsed) {
+        parsed = TryParseDirectoryArchiveTag(relativePath, strippedName, strippedNameSize, archiveTagLower, archiveTagLowerSize);
+    }
+    if (!parsed) {
         return false;
     }
 
@@ -1433,6 +1439,55 @@ struct ParsedScannedOverride {
     const char* basename;
 };
 
+static bool TryParseDirectoryArchiveTag(const char* relativePath, char* strippedName, u32 strippedNameSize,
+                                        char* archiveTagLower, u32 archiveTagLowerSize) {
+    if (strippedName != nullptr && strippedNameSize > 0) strippedName[0] = '\0';
+    if (archiveTagLower != nullptr && archiveTagLowerSize > 0) archiveTagLower[0] = '\0';
+    if (relativePath == nullptr || !HasBuffer(strippedName, strippedNameSize) ||
+        !HasBuffer(archiveTagLower, archiveTagLowerSize)) {
+        return false;
+    }
+
+    const char* lastSlash = nullptr;
+    for (const char* p = relativePath; *p != '\0'; ++p) {
+        if (*p == '/') {
+            lastSlash = p;
+        }
+    }
+
+    if (lastSlash == nullptr || lastSlash == relativePath) {
+        return false;
+    }
+
+    const char* parentStart = relativePath;
+    for (const char* p = lastSlash - 1; p >= relativePath; --p) {
+        if (*p == '/') {
+            parentStart = p + 1;
+            break;
+        }
+    }
+
+    const u32 tagLen = static_cast<u32>(lastSlash - parentStart);
+    if (tagLen == 0 || tagLen + 1 > archiveTagLowerSize) {
+        return false;
+    }
+
+    memcpy(archiveTagLower, parentStart, tagLen);
+    archiveTagLower[tagLen] = '\0';
+    ToLowerInPlace(archiveTagLower);
+
+    const char* filename = lastSlash + 1;
+    const u32 filenameLen = static_cast<u32>(strlen(filename));
+    if (filenameLen + 1 > strippedNameSize) {
+        return false;
+    }
+
+    memcpy(strippedName, filename, filenameLen);
+    strippedName[filenameLen] = '\0';
+
+    return true;
+}
+
 static bool ParseScannedOverride(const char* relativePath, ParsedScannedOverride& out) {
     memset(&out, 0, sizeof(out));
     if (relativePath == nullptr) return false;
@@ -1447,8 +1502,15 @@ static bool ParseScannedOverride(const char* relativePath, ParsedScannedOverride
         return true;
     }
 
-    out.isTagged = TryParseArchiveTag(relativePath, out.strippedName, sizeof(out.strippedName), out.archiveTagLower,
-                                      sizeof(out.archiveTagLower));
+    const bool isWholeFileExtension = EndsWithIgnoreCase(out.basename, ".szs") || EndsWithIgnoreCase(out.basename, ".brstm");
+    if (!isWholeFileExtension) {
+        out.isTagged = TryParseArchiveTag(relativePath, out.strippedName, sizeof(out.strippedName), out.archiveTagLower,
+                                          sizeof(out.archiveTagLower));
+        if (!out.isTagged) {
+            out.isTagged = TryParseDirectoryArchiveTag(relativePath, out.strippedName, sizeof(out.strippedName), out.archiveTagLower,
+                                                     sizeof(out.archiveTagLower));
+        }
+    }
     if (out.isTagged) {
         out.isDelete = StripDeleteSuffixInPlace(out.strippedName);
         if (out.strippedName[0] == '\0') return false;

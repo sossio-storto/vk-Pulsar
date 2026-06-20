@@ -25,7 +25,7 @@ void ApplyFPSSetting() {
     }
     
     const Settings::Mgr& settings = Settings::Mgr::Get();
-    u8 fpsSetting = settings.GetSettingValue(Settings::SETTINGSTYPE_FPS, SETTINGFPS_RADIO_FPS);
+    u8 fpsSetting = settings.GetSettingValue(Settings::SETTINGSTYPE_RACE, SETTINGRACE_RADIO_FPS);
     
     *reinterpret_cast<u8*>(kmRuntimeAddr(0x80001200)) = (fpsSetting == SETTINGFPS_FPS_30) ? 1 : 0;
 }

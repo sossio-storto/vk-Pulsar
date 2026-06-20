@@ -43,7 +43,7 @@ void Mgr::Init(const u16* totalTrophyCount, const char* path/*, const char *curM
     System* system = System::sInstance;
     IO* io = IO::sInstance;
 
-    Binary* buffer;
+    Binary* buffer = nullptr;
     bool ret = io->OpenFile(this->filePath, FILE_MODE_READ_WRITE);
     if(!ret) {
         io->CreateAndOpen(this->filePath, FILE_MODE_READ_WRITE);
@@ -51,15 +51,54 @@ void Mgr::Init(const u16* totalTrophyCount, const char* path/*, const char *curM
     else {
         alignas(0x20) BinaryHeader header;
         ret = io->Read(sizeof(BinaryHeader), &header) == sizeof(BinaryHeader);
-        if(header.magic != Binary::binMagic) ret = false;
-        else {
+        if(ret && header.magic == Binary::binMagic && header.fileSize >= 28 && header.fileSize <= 0x10000) {
             buffer = io->Alloc<Binary>(header.fileSize);
-            io->Seek(0);
-            io->Read(header.fileSize, buffer);
-            if(header.version != Binary::curVersion) {
-                buffer = this->CreateFromOld(buffer);
-                if(buffer == nullptr) ret = false;
+            if(buffer == nullptr) {
+                ret = false;
             }
+            else {
+                io->Seek(0);
+                if(io->Read(header.fileSize, buffer) == header.fileSize) {
+                    if(header.version >= 3 && header.version <= Binary::curVersion) {
+                        if(header.sectionCount != 4) {
+                            ret = false;
+                        }
+                        else {
+                            const u32 magics[4] = { 'PAGE', 'MISC', 'TROP', 'GP\0\0' };
+                            for(int i = 0; i < 4; ++i) {
+                                u32 offset = buffer->header.offsets[i];
+                                if(offset + sizeof(SectionHeader) > header.fileSize) {
+                                    ret = false;
+                                    break;
+                                }
+                                const SectionHeader* sec = reinterpret_cast<const SectionHeader*>(ut::AddU32ToPtr(buffer, offset));
+                                if(offset + sec->size > header.fileSize || sec->magic != magics[i]) {
+                                    ret = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if(ret) {
+                        if(header.version != Binary::curVersion) {
+                            buffer = this->CreateFromOld(buffer);
+                            if(buffer == nullptr) ret = false;
+                        }
+                    }
+                    else {
+                        delete buffer;
+                        buffer = nullptr;
+                    }
+                }
+                else {
+                    ret = false;
+                    delete buffer;
+                    buffer = nullptr;
+                }
+            }
+        }
+        else {
+            ret = false;
         }
     }
     if(!ret) {
@@ -281,31 +320,61 @@ void Mgr::AdjustSectionsSizes() {
 Binary* Mgr::CreateFromOld(const Binary* old) {
     Binary* ret;
     const u32 version = old->header.version;
-    if(version < 2) ret = nullptr;
+    if(version < 2 || version == 5) ret = nullptr;
     else {
-        const PagesHolderV1* oldPages;
-        const MiscParams* oldParams;
-        const TrophiesHolder* oldTrophies;
+        const PagesHolderV1* oldPages = nullptr;
+        const MiscParams* oldParams = nullptr;
+        const TrophiesHolder* oldTrophies = nullptr;
+        const Page* oldPagesPtr = nullptr;
+        u32 oldPulsarPageCount = 0;
 
         if(version == 2) {
             const BinaryHeaderV1& oldHeader = reinterpret_cast<const BinaryHeaderV1&>(old->header);
             oldPages = reinterpret_cast<const PagesHolderV1*>(ut::AddU32ToPtr(old, oldHeader.offsetToPages));
             oldParams = reinterpret_cast<const MiscParams*>(ut::AddU32ToPtr(old, oldHeader.offsetToMisc));
             oldTrophies = reinterpret_cast<const TrophiesHolder*>(ut::AddU32ToPtr(old, oldHeader.offsetToTrophies));
+            oldPagesPtr = &oldPages->pages[0];
+            oldPulsarPageCount = oldPages->pageCount;
         }
-        else { //version 3
+        else if (version == 3) { //version 3
             oldPages = reinterpret_cast<const PagesHolderV1*>(&old->GetSection<PagesHolder>()); //since GetSection uses offset, this reinterpret_cast is completely safe
             oldParams = &old->GetSection<MiscParams>();
             oldTrophies = &old->GetSection<TrophiesHolder>();
+            oldPagesPtr = &oldPages->pages[0];
+            oldPulsarPageCount = oldPages->pageCount;
         }
-        const u32 pageCount = ut::Min(this->pulsarPageCount, oldPages->pageCount); //we use the minimum here, it's fine if some settings are lost
+        else { //version 4
+            const PagesHolder& oldPagesHolder = old->GetSection<PagesHolder>();
+            oldParams = &old->GetSection<MiscParams>();
+            oldTrophies = &old->GetSection<TrophiesHolder>();
+            oldPagesPtr = &oldPagesHolder.pages[0];
+            oldPulsarPageCount = oldPagesHolder.pulsarPageCount;
+        }
+        const u32 pageCount = ut::Min(this->pulsarPageCount, oldPulsarPageCount); //we use the minimum here, it's fine if some settings are lost
         const u32 trackCount = oldParams->trackCount; //we use the old track count to preserve all trophies
         ret = IO::sInstance->Alloc<Binary>(this->GetSettingsBinSize(trackCount));
         new(ret) Binary(pageCount, 0, trackCount); //this didn't have userPageCount
 
         //PAGES, version 4 modifies the header and adds user pages so just copy the pulsar pages
         PagesHolder& pages = ret->GetSection<PagesHolder>();
-        memcpy(&pages.pages[0], &oldPages->pages[0], pageCount * sizeof(Page));
+        memcpy(&pages.pages[0], oldPagesPtr, pageCount * sizeof(Page));
+
+        // Migrate old settings for version <= 4
+        if(version <= 4) {
+            // 1. Migrate FPS setting from old page 5 (SETTINGSTYPE_FPS) index 0 to new page 1 (SETTINGSTYPE_RACE) index 3
+            if(oldPulsarPageCount >= 6) {
+                pages.pages[SETTINGSTYPE_RACE].settings[3] = oldPagesPtr[5].settings[0];
+            } else {
+                pages.pages[SETTINGSTYPE_RACE].settings[3] = 0; // default to 0
+            }
+
+            // 2. Migrate HUD Color from old page 6 (SETTINGSTYPE_UI) index 6 to new page 0 (SETTINGSTYPE_MENU) index 7 (scrollSetting[1])
+            if(oldPulsarPageCount >= 7) {
+                pages.pages[SETTINGSTYPE_MENU].settings[7] = oldPagesPtr[6].settings[6];
+            } else {
+                pages.pages[SETTINGSTYPE_MENU].settings[7] = 0; // default to 0
+            }
+        }
 
         //MISC, unchanged from 2/3 to 4
         MiscParams& params = ret->GetSection<MiscParams>();
@@ -321,7 +390,7 @@ Binary* Mgr::CreateFromOld(const Binary* old) {
             const u32 cupCount = trackCount / 4;
             memset(&gp.gpStatus[0], 0xFF, sizeof(GPCupStatus) * cupCount);
         }
-        else if(version == 3) {
+        else if(version == 3 || version == 4) {
             const GPSection& oldGp = old->GetSection<GPSection>();
             memcpy(&gp, &oldGp, oldGp.header.size);
         }

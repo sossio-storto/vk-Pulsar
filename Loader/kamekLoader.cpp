@@ -170,6 +170,8 @@ static void LoadKamekBinary(LoaderParams* params, const void* binary, u32 binary
             *output = 0;
             cacheInvalidateAddress((u32)(output++));
         }
+    } else {
+        input += header->codeSize;
     }
     typedef struct {
         u8 _00[0x60 - 0x00];
