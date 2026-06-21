@@ -3,6 +3,7 @@
 #include <IO/IO.hpp>
 #include <IO/NANDIO.hpp>
 #include <IO/RiivoIO.hpp>
+#include <IO/SDIO.hpp>
 
 namespace Pulsar {
 
@@ -10,8 +11,18 @@ IO* IO::sInstance = nullptr;
 
 IO* IO::CreateInstance(IOType type, EGG::Heap* heap, EGG::TaskThread* const taskThread) {
     IO* io;
-    if(type != IOType_RIIVO) io = new (heap) NANDIO(type, heap, taskThread);
-    else io = new (heap) RiivoIO(type, heap, taskThread);
+    switch (type) {
+        case IOType_RIIVO:
+            io = new (heap) RiivoIO(type, heap, taskThread);
+            break;
+        case IOType_ISO:
+        case IOType_DOLPHIN:
+            io = new (heap) NANDIO(type, heap, taskThread);
+            break;
+        case IOType_SD:
+            io = new (heap) SDIO(type, heap, taskThread);
+            break;
+    }
     IO::sInstance = io;
     return io;
 }

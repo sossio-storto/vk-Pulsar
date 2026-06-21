@@ -18,6 +18,8 @@
 #include <Settings/Settings.hpp>
 #include <include/c_stdio.h>
 #include <include/c_stdlib.h>
+#include <VanzaKartChannel.hpp>
+#include <IO/SDIO.hpp>
 #include <include/c_string.h>
 #include <MarioKartWii/Archive/ArchiveFile.hpp>
 #include <MarioKartWii/Scene/GameScene.hpp>
@@ -1182,15 +1184,47 @@ static EGG::Heap* GetPersistentOverrideHeap(u32 requiredSize) {
 static bool ModsRootExists();
 static bool FindModsDirInFST(u32& outIndex, u32& outEnd);
 static bool ShouldProbeSDModsPath() {
+    IO* io = IO::sInstance;
+    if (io == nullptr) return false;
+    // Hardware SD can use the active IO backend directly; Dolphin channel mode needs an explicit SD probe.
+    if (io->type == IOType_SD) return true;
+    if (io->type == IOType_DOLPHIN && IsNewChannel()) return true;
     return false;
 }
 
 static bool GetSDModsRootPath(char* outPath, u32 outSize) {
-    return false;
+    if (!HasBuffer(outPath, outSize)) return false;
+
+    const System* system = System::sInstance;
+    if (system == nullptr) return false;
+
+    const char* modFolder = system->GetModFolder();
+    // No mod folder means there is no external loose-override root to resolve.
+    if (IsEmpty(modFolder)) return false;
+
+    const int written = snprintf(outPath, outSize, "%s/My Stuff", modFolder);
+    if (written <= 0 || static_cast<u32>(written) >= outSize) return false;
+    return true;
 }
 
 static bool ModsRootExistsOnSD() {
-    return false;
+    IO* io = IO::sInstance;
+    if (io == nullptr) return false;
+    if (!ShouldProbeSDModsPath()) return false;
+
+    char modsPath[OVERRIDE_MAX_PATH];
+    if (!GetSDModsRootPath(modsPath, sizeof(modsPath))) return false;
+    bool exists = false;
+    if (io->type == IOType_SD) {
+        exists = io->FolderExists(modsPath);
+    } else {
+        System* system = System::sInstance;
+        if (system == nullptr) return false;
+        // Dolphin channel mode is not backed by the main IO object, so probe through a stack SDIO instance.
+        SDIO sdIo(IOType_SD, system->heap, system->taskThread);
+        exists = sdIo.FolderExists(modsPath);
+    }
+    return exists;
 }
 
 static bool ResolveFSTDirByPath(const char* path, u32 entryCount, u32& outIndex, u32& outEnd) {

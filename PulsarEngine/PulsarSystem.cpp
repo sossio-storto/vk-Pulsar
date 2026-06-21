@@ -4,6 +4,7 @@
 #include <MarioKartWii/GlobalFunctions.hpp>
 #include <MarioKartWii/RKNet/RKNetController.hpp>
 #include <PulsarSystem.hpp>
+#include <VanzaKartChannel.hpp>
 #include <Extensions/LECODE/LECODEMgr.hpp>
 #include <Gamemodes/KO/KOMgr.hpp>
 #include <Gamemodes/KO/KOHost.hpp>
@@ -47,19 +48,25 @@ System::System() :
 
 void System::Init(const ConfigFile& conf) {
     IOType type = IOType_ISO;
-    s32 ret = IO::OpenFix("file", IOS::MODE_NONE);
+    bool isDolphin = false;
+    s32 ret = IO::OpenFix("/dev/dolphin", IOS::MODE_NONE);
+    if (ret >= 0) {
+        isDolphin = true;
+        IOS::Close(ret);
+    }
 
-    if(ret >= 0) {
+    ret = IO::OpenFix("file", IOS::MODE_NONE);
+    if (ret >= 0 && !IsNewChannel()) {
         type = IOType_RIIVO;
         IOS::Close(ret);
     }
-    else {
-        ret = IO::OpenFix("/dev/dolphin", IOS::MODE_NONE);
-        if(ret >= 0) {
-            type = IOType_DOLPHIN;
-            IOS::Close(ret);
-        }
+    else if (IsNewChannel() && !isDolphin) {
+        type = IOType_SD;
     }
+    else if (isDolphin) {
+        type = IOType_DOLPHIN;
+    }
+
     strncpy(this->modFolderName, conf.header.modFolderName, IOS::ipcMaxFileName);
 
     //InitInstances
@@ -67,6 +74,10 @@ void System::Init(const ConfigFile& conf) {
     this->info.Init(conf.GetSection<InfoHolder>().info);
     this->InitIO(type);
     this->InitSettings(&conf.GetSection<CupsHolder>().trophyCount[0]);
+
+    if (IsNewChannel()) {
+        NewChannel_Init();
+    }
 
 
     //Initialize last selected cup and courses

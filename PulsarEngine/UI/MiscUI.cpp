@@ -10,6 +10,8 @@
 #include <Gamemodes/KO/KORaceEndPage.hpp>
 #include <Debug/Debug.hpp>
 #include <UI/UI.hpp>
+#include <VanzaKartChannel.hpp>
+#include <Dolphin/DolphinIOS.hpp>
 
 
 
@@ -40,7 +42,12 @@ kmBranch(0x80646754, AfterWifiResults);
 //Credit to Kazuki for making the original ASM code, and Brawlbox for porting it to C++
 static void LaunchRiivolutionButton(SectionMgr* sectionMgr) {
     const SectionId id = sectionMgr->nextSectionId;
-    if (id == SECTION_CHANNEL_FROM_MENU || id == SECTION_CHANNEL_FROM_CHECK_RANKINGS || id == SECTION_CHANNEL_FROM_DOWNLOADS) Debug::LaunchSoftware();
+    if (id == SECTION_CHANNEL_FROM_MENU || id == SECTION_CHANNEL_FROM_CHECK_RANKINGS || id == SECTION_CHANNEL_FROM_DOWNLOADS) {
+        if (!Dolphin::IsEmulator() && IsNewChannel()) {
+            NewChannel_WriteLoadedFromRREphFile();
+        }
+        Debug::LaunchSoftware();
+    }
     else sectionMgr->LoadSection();
 }
 kmCall(0x80553a60, LaunchRiivolutionButton);

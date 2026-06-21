@@ -170,8 +170,6 @@ static void LoadKamekBinary(LoaderParams* params, const void* binary, u32 binary
             *output = 0;
             cacheInvalidateAddress((u32)(output++));
         }
-    } else {
-        input += header->codeSize;
     }
     typedef struct {
         u8 _00[0x60 - 0x00];
@@ -188,25 +186,18 @@ static void LoadKamekBinary(LoaderParams* params, const void* binary, u32 binary
 
         u8 cmd = cmdHeader >> 24;
         u32 address = cmdHeader & 0xFFFFFF;
-        bool shouldApply = true;
         if (address == 0xFFFFFE) {
             // Absolute address
             address = *((u32*)input);
-            input += 4;
             if (address < params->relStart && !isDol)
-                shouldApply = false;
+                continue;
             else if (address >= params->relStart && isDol)
-                shouldApply = false;
+                continue;
+            input += 4;
         } else {
+            if (!isDol) continue;
             // Relative address
             address += text;
-            if (!isDol)
-                shouldApply = false;
-        }
-
-        u32 dummy = 0;
-        if (!shouldApply) {
-            address = (u32)&dummy;
         }
 
         switch (cmd) {
@@ -256,9 +247,7 @@ static void LoadKamekBinary(LoaderParams* params, const void* binary, u32 binary
                 params->OSReport("Unknown command: %d\n", cmd);
         }
 
-        if (shouldApply) {
-            cacheInvalidateAddress(address);
-        }
+        cacheInvalidateAddress(address);
     }
     asmVolatile(sync;);
     asmVolatile(isync;);
