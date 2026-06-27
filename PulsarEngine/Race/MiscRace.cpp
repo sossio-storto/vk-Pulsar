@@ -44,7 +44,7 @@ kmCall(0x80799808, SetStartingItem);
 static int MiiHeads(Racedata* racedata, u32 unused, u32 unused2, u8 id) {
     CharacterId charId = racedata->racesScenario.players[id].characterId;
     PlayerType type = racedata->racesScenario.players[id].playerType;
-    if (Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_RACE, SETTINGRACE_RADIO_MII) == RACESETTING_MII_ENABLED) {
+    if (Pulsar::System::sInstance->IsContext(Pulsar::PULSAR_MIIHEADS)) {
         if (type == PLAYER_REAL_LOCAL || type == PLAYER_REAL_ONLINE || type == PLAYER_GHOST) {
             if (charId < MII_M) {
                 charId = MII_M;

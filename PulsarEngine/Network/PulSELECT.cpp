@@ -302,6 +302,11 @@ kmCall(0x80644414, SetCorrectTrack);
 //Overwrites CC rules -> 10% 100, 65% 150, 25% mirror and/or in frooms, overwritten by host setting
 static void DecideCC(ExpSELECTHandler& handler) {
     System* system = System::sInstance;
+    if (system->IsContext(PULSAR_STARTMOGI)) {
+        handler.toSendPacket.engineClass = 2;
+        Network::ReportU32("wl:mkw_select_cc", handler.toSendPacket.engineClass);
+        return;
+    }
     if (!system->IsContext(PULSAR_CT)) reinterpret_cast<RKNet::SELECTHandler&>(handler).DecideEngineClass();
     else {
         const u8 ccSetting = Settings::Mgr::Get().GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_CC);

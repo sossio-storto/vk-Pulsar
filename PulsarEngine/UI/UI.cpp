@@ -10,6 +10,9 @@
 #include <Settings/UI/ExpOptionsPage.hpp>
 #include <Settings/UI/ExpWFCMainPage.hpp>
 #include <UI/ChangeCombo/ChangeCombo.hpp>
+#include <UI/Leaderboard/ExpGPVSLeaderboardUpdate.hpp>
+#include <UI/Leaderboard/ExpGPVSLeaderboardTotal.hpp>
+#include <UI/Leaderboard/ExpWWLeaderboardUpdate.hpp>
 
 //Pulsar Custom Pages:
 #include <UI/TeamSelect/TeamSelect.hpp>
@@ -182,6 +185,15 @@ void ExpSection::CreateAndInitPage(ExpSection& self, u32 id) {
         case PAGE_SELECT_STAGE_MGR:
             if(self.hasAutoVote) page = new AutoVote;
             else page = new Pages::SELECTStageMgr;
+            break;
+        case PAGE_GPVS_LEADERBOARD_UPDATE:
+            page = new ExpGPVSLeaderboardUpdate;
+            break;
+        case PAGE_GPVS_TOTAL_LEADERBOARDS:
+            page = new ExpGPVSLeaderboardTotal;
+            break;
+        case PAGE_WW_LEADERBOARDS_UPDATE:
+            page = new ExpWWLeaderboardUpdate;
             break;
 
             //PULPAGES

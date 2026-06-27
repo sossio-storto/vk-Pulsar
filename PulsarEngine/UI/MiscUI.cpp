@@ -12,8 +12,9 @@
 #include <UI/UI.hpp>
 #include <VanzaKartChannel.hpp>
 #include <Dolphin/DolphinIOS.hpp>
-
-
+namespace VanzaKart {
+    void HideChannelButton();
+}
 
 namespace Pulsar {
 
@@ -24,6 +25,18 @@ kmWrite32(0x80855f48, 0x48000148);
 
 //BMG size patch (Diamond)
 kmWrite32(0x8007B37C, 0x38000128);
+
+static void CenterTopMenuWifiWaku(ControlLoader* loader, const char* folderName, const char* ctrName, const char* variant, const char** animNames) {
+    loader->Load(folderName, ctrName, variant, animNames);
+    if (Dolphin::IsEmulator() && strcmp(ctrName, "TopMenuWifiWaku") == 0) {
+        LayoutUIControl* control = loader->layoutUIControl;
+        for (int i = 0; i < 4; ++i) {
+            control->positionAndscale[i].position.x += 135.0f;
+        }
+        control->SetPosition(0.0f);
+    }
+}
+kmCall(0x80850604, CenterTopMenuWifiWaku);
 
 static PageId AfterWifiResults(PageId id) {
     const SectionMgr* sectionMgr = SectionMgr::sInstance;
@@ -83,6 +96,7 @@ kmCall(0x807f8b7c, FixStartMessageFroom);
 static void DisplayDate(CtrlMenuPressStart* start) {
     start->Load();
     start->SetMessage(BMG_DATE);
+    ::VanzaKart::HideChannelButton();
 }
 kmCall(0x8063ac58, DisplayDate);
 

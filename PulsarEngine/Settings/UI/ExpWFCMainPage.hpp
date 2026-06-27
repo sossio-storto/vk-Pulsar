@@ -11,11 +11,14 @@ class ExpWFCMain : public Pages::WFCMainMenu {
 public:
     ExpWFCMain();
     void OnInit() override;
+    void BeforeControlUpdate() override;
 private:
     void OnSettingsButtonClick(PushButton& PushButton, u32 r5);
     void ExtOnButtonSelect(PushButton& pushButton, u32 hudSlotId);
     PtmfHolder_2A<ExpWFCMain, void, PushButton&, u32> onSettingsClick;
     PushButton settingsButton;
+    LayoutUIControl playerCount;
+    LayoutUIControl rankInfo;
 public:
     PulPageId topSettingsPage;
 };
@@ -29,6 +32,9 @@ public:
     };
 
     ExpWFCModeSel();
+    void OnInit() override;
+    void BeforeControlUpdate() override;
+    static void InitButton(ExpWFCModeSel& self);
     static void OnActivatePatch();
     void SetMenuTextAndRatings();
 private:
@@ -37,6 +43,7 @@ private:
     void OnBackButtonClick(PushButton& backButton, u32 hudSlotId);
     void OnBackPress(u32 hudSlotId);
     
+    LayoutUIControl vrButton;
     u32 lastClickedButton;
     u32 submenuState;
 };

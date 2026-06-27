@@ -68,3 +68,11 @@ PulsarPackCreator/Executable/Pulsar Pack Creator.dll
 PulsarPackCreator/Executable/Pulsar Pack Creator.runtimeconfig.json
 PulsarPackCreator/Executable/System.IO.Hashing.dll
 PulsarPackCreator/Executable/PulsarBMGModified.txt
+
+# Ignore all txt files
+*.txt
+!symbols.txt
+!versions.txt
+
+# Ignore the entire PulsarPackCreator directory
+/PulsarPackCreator/

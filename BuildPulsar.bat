@@ -38,6 +38,7 @@ for /R %PULSAR% %%f in (*.cpp) do SET "CPPFILES=%%f !CPPFILES!"
 
 :: Compile CPP
 %CC% %CFLAGS% -c -o "build/kamek.o" "%ENGINE%\kamek.cpp"
+%CC% %CFLAGS% -c -o "build/RuntimeWrite.o" "%ENGINE%\RuntimeWrite.cpp"
 
 SET OBJECTS=
 FOR %%H IN (%CPPFILES%) DO (
@@ -48,7 +49,7 @@ FOR %%H IN (%CPPFILES%) DO (
 
 :: Link
 echo Linking... %time%
-".\KamekLinker\Kamek.exe" "build/kamek.o" %OBJECTS% %debug% -dynamic -externals="%GAMESOURCE%/symbols.txt" -versions="%GAMESOURCE%/versions.txt" -output-combined=build\Code.pul -output-map=build\Code.$KV$.map
+".\KamekLinker\Kamek.exe" "build/kamek.o" "build/RuntimeWrite.o" %OBJECTS% %debug% -dynamic -externals="%GAMESOURCE%/symbols.txt" -versions="%GAMESOURCE%/versions.txt" -output-combined=build\Code.pul -output-map=build\Code.$KV$.map
 
 if %ErrorLevel% equ 0 if NOT "!RIIVO!" == "" (
     xcopy /Y build\*.pul "%RIIVO%\Binaries" /i /q
@@ -56,5 +57,5 @@ if %ErrorLevel% equ 0 if NOT "!RIIVO!" == "" (
 )
 
 :end
-pause
+::pause
 ENDLOCAL

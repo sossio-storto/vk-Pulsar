@@ -152,6 +152,7 @@ void System::UpdateContext() {
     bool isStartVKWW = false;
     bool isStartOTTWW = false;
     bool isStartItemRain = false;
+    bool isStartMogi = false;
     bool isItemRainActive = false;
     bool isItemStormActive = false;
     bool isAllItemsCanLand = false;
@@ -185,6 +186,7 @@ void System::UpdateContext() {
                 isStartVKWW = newContext & (1 << PULSAR_STARTVKWW);
                 isStartOTTWW = newContext & (1 << PULSAR_STARTOTTWW);
                 isStartItemRain = newContext & (1 << PULSAR_STARTITEMRAIN);
+                isStartMogi = newContext & (1 << PULSAR_STARTMOGI);
                 isItemRainActive = newContext & (1 << PULSAR_ITEMMODERAIN);
                 isItemStormActive = newContext & (1 << PULSAR_ITEMMODESTORM);
                 isAllItemsCanLand = newContext & (1 << PULSAR_ALLITEMSCANLAND);
@@ -198,9 +200,9 @@ void System::UpdateContext() {
         }
         if (isRegionalRoom) {
             const u32 region = Network::REGIONID;
-            if (region == 0x69) {
+            if (region == 0xCD) {
                 isOTT = true;
-            } else if (region == 0x0D) {
+            } else if (region == 0x71) {
                 isItemRainActive = true;
             }
         }
@@ -222,6 +224,7 @@ void System::UpdateContext() {
             | (isStartVKWW << PULSAR_STARTVKWW)
             | (isStartOTTWW << PULSAR_STARTOTTWW)
             | (isStartItemRain << PULSAR_STARTITEMRAIN)
+            | (isStartMogi << PULSAR_STARTMOGI)
             | (isItemRainActive << PULSAR_ITEMMODERAIN)
             | (isItemStormActive << PULSAR_ITEMMODESTORM)
             | (isAllItemsCanLand << PULSAR_ALLITEMSCANLAND)
@@ -246,6 +249,11 @@ void System::UpdateContext() {
     if(!isKO && this->koMgr != nullptr || isKO && sceneId == SCENE_ID_GLOBE) {
         delete this->koMgr;
         this->koMgr = nullptr;
+    }
+
+    if (isStartMogi) {
+        Racedata::sInstance->menusScenario.settings.modeFlags &= ~0x2;
+        Racedata::sInstance->racesScenario.settings.modeFlags &= ~0x2;
     }
 }
 
@@ -287,7 +295,7 @@ kmWrite32(0x80549974, 0x38600001);
 kmRegionWrite32(0x80604094, 0x4800001c, 'E');
 
 // VanzaKart WWFC pack identification
-kmWrite32(0x800017D0, 0x68);   // pack_id
+kmWrite32(0x800017D0, 204);   // pack_id
 kmWrite32(0x800017D4, 105);      // pack_version
 
 const char System::pulsarString[] = "/Pulsar";

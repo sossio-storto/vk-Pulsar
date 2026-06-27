@@ -45,6 +45,7 @@ class USERHandler {
     bool isInitialized;
     void CreateSendPacket(); //8066300c
 
+    private:
     USERHandler(); //80662e08 inlined
     ~USERHandler(); //80662e64 inlined
 
@@ -58,6 +59,8 @@ class USERHandler {
     void SetSendBR(); //80662dc4
 
     void ImportNewPackets(); //80662ebc
+
+
 
     u8 unknown_0x1[7];
 

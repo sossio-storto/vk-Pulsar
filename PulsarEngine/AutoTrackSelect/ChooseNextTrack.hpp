@@ -29,8 +29,8 @@ public:
     static const u32 maxButtonCount = 5;
 
     ChooseNextTrack();
-    ~ChooseNextTrack() override { ++SectionMgr::sInstance->sectionParams->onlineParams.currentRaceNumber; }
     void OnActivate() override;
+    void OnDeactivate() override;
     void OnUpdate() override;
     //const ut::detail::RuntimeTypeInfo* GetRuntimeTypeInfo() const override;
     int GetMessageBMG() const override;

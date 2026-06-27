@@ -294,5 +294,10 @@ PageId ChooseNextTrack::GetPageAfterWifiResults(PageId defaultId) const {
     return ret;
 }
 
+void ChooseNextTrack::OnDeactivate() {
+    ++SectionMgr::sInstance->sectionParams->onlineParams.currentRaceNumber;
+    Pages::RaceMenu::OnDeactivate();
+}
+
 }//namespace UI
 }//namespace Pulsar

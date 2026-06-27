@@ -54,7 +54,12 @@ static void BeforeROOMSend(RKNet::PacketHolder<PulROOM>* packetHolder, PulROOM* 
         // Messages 4 and 5 are OPT WW and OTT WW starts (added by ExpFroomMessages).
         // Remap them to 0 or 1 so the base game handles them as a normal VS / Team VS start.
         const u8 originalMessage = destPacket->message;
-        if (originalMessage >= 4 && originalMessage <= 9) {
+        const Settings::Mgr& settings = Settings::Mgr::Get();
+        const bool isStartMogi = settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_MOGI) == 1;
+
+        if (isStartMogi) {
+            destPacket->message = 0; // Force Solo VS
+        } else if (originalMessage >= 4 && originalMessage <= 8) {
             if (originalMessage == 8) { // Item Rain Team VS (8)
                 destPacket->message = 1; // Team VS
             } else {
@@ -62,13 +67,11 @@ static void BeforeROOMSend(RKNet::PacketHolder<PulROOM>* packetHolder, PulROOM* 
             }
         }
 
-        const u8 isStartVKWW = (originalMessage == 4);
-        const u8 isStartOTWW  = (originalMessage == 5);
-        const u8 isStartItemRainWW = (originalMessage == 6);
-        const u8 isStartItemRainVS = (originalMessage == 7);
-        const u8 isStartItemRainTeamVS = (originalMessage == 8);
-
-        const Settings::Mgr& settings = Settings::Mgr::Get();
+        const u8 isStartVKWW = !isStartMogi && (originalMessage == 4);
+        const u8 isStartOTWW  = !isStartMogi && (originalMessage == 5);
+        const u8 isStartItemRainWW = !isStartMogi && (originalMessage == 6);
+        const u8 isStartItemRainVS = !isStartMogi && (originalMessage == 7);
+        const u8 isStartItemRainTeamVS = !isStartMogi && (originalMessage == 8);
 
         const u8 koSetting = settings.GetSettingValue(Settings::SETTINGSTYPE_KO, SETTINGKO_ENABLED) && destPacket->message == 0; //KO only enabled for normal GPs
         const u8 koFinal = settings.GetSettingValue(Settings::SETTINGSTYPE_KO, SETTINGKO_FINAL) == KOSETTING_FINAL_ALWAYS;
@@ -79,16 +82,18 @@ static void BeforeROOMSend(RKNet::PacketHolder<PulROOM>* packetHolder, PulROOM* 
             | (settings.GetSettingValue(Settings::SETTINGSTYPE_OTT, SETTINGOTT_ALLOWUMTS) ^ true) << PULSAR_UMTS //ott umts
             | koSetting << PULSAR_MODE_KO
             | koFinal << PULSAR_KOFINAL
-            | (settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_ALLOW_MIIHEADS) ^ true) << PULSAR_MIIHEADS
-            | settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_HOSTWINS) << PULSAR_HAW
-            | (settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_THUNDERCLOUD) == THUNDERCLOUD_NORMAL) << PULSAR_THUNDERCLOUD
+            | (!isStartMogi && (settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_ALLOW_MIIHEADS) ^ true)) << PULSAR_MIIHEADS
+            | (!isStartMogi && settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_HOSTWINS)) << PULSAR_HAW
+            | (isStartMogi || (settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_RADIO_THUNDERCLOUD) == THUNDERCLOUD_NORMAL)) << PULSAR_THUNDERCLOUD
             | isStartVKWW << PULSAR_STARTVKWW   // OPT WW start from friend room
             | isStartOTWW  << PULSAR_STARTOTTWW  // OTT WW start from friend room
             | isStartItemRainWW << PULSAR_STARTITEMRAIN
-            | (isStartItemRainWW || isStartItemRainVS || isStartItemRainTeamVS) << PULSAR_ITEMMODERAIN;
+            | (!isStartMogi && (isStartItemRainWW || isStartItemRainVS || isStartItemRainTeamVS)) << PULSAR_ITEMMODERAIN
+            | isStartMogi << PULSAR_STARTMOGI;
 
         u8 raceCount;
         if (koSetting == KOSETTING_ENABLED) raceCount = 0xFE;
+        else if (isStartMogi) raceCount = 3;
         else switch (settings.GetSettingValue(Settings::SETTINGSTYPE_HOST, SETTINGHOST_SCROLL_GP_RACES)) {
         case(0): // 4 races
             raceCount = 3;

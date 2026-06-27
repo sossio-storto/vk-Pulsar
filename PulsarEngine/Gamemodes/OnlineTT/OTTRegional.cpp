@@ -22,7 +22,7 @@ ut::Color GetFriendColor(u32 friendIdx) {
     const RKNet::Friend* friendData = &RKNet::Controller::sInstance->friends[friendIdx];
     const u8 friendRegion = friendData->statusData.regionId;
 
-    const bool isSpecialRegion = (friendRegion == 0x0B || friendRegion == 0x0C || friendRegion == 0x0D);
+    const bool isSpecialRegion = (friendRegion == 0xCD || friendRegion == 0x70 || friendRegion == 0x71);
 
     switch (type) {
         case RKNet::SEARCH_TYPE_VS_WW:
@@ -224,11 +224,11 @@ void GlobeMsgColor(Pages::Globe::MessageWindow& msg, u32 bmgId, Text::Info* info
     const u8 friendRegion = friendData->statusData.regionId;
 
     // Set appropriate BMG based on region
-    if (friendRegion == 0xB) {
+    if (friendRegion == 0xCD) {
         bmgId = UI::BMG_OTT_PLAYING;
-    } else if (friendRegion == 0xC) {
+    } else if (friendRegion == 0x70) {
         bmgId = UI::BMG_200_PLAYING;
-    } else if (friendRegion == 0xD) {
+    } else if (friendRegion == 0x71) {
         bmgId = UI::BMG_ITEM_RAIN_PLAYING;
     }
 
@@ -243,17 +243,17 @@ void GlobeMsgColor(Pages::Globe::MessageWindow& msg, u32 bmgId, Text::Info* info
 kmCall(0x805e504c, GlobeMsgColor);
 
 void GlobeSearchTopMsg(CtrlMenuPageTitleText& title, u32 bmgId, Text::Info* info) {
-    if (REGIONID == 0x0A)
+    if (REGIONID == 0xCC)
         bmgId = UI::BMG_TITLE_TEXT_RT;
-    else if (REGIONID == 0x0B)
+    else if (REGIONID == 0xCD)
         bmgId = UI::BMG_OTT_TITLE_TEXT;
-    else if (REGIONID == 0x0C)
+    else if (REGIONID == 0x70)
         bmgId = UI::BMG_200_TITLE_TEXT;
-    else if (REGIONID == 0x0D)
+    else if (REGIONID == 0x71)
         bmgId = UI::BMG_ITEM_RAIN_TITLE_TEXT;
-    else if (REGIONID == 0x14)
+    else if (REGIONID == 0x78)
         bmgId = UI::BMG_TITLE_TEXT_CT;
-    else if (REGIONID == 0x15)
+    else if (REGIONID == 0x79)
         bmgId = UI::BMG_TITLE_TEXT_REGS;
     title.SetMessage(bmgId, info);
 }

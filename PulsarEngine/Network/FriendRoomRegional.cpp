@@ -5,6 +5,7 @@
 #include <MarioKartWii/UI/Section/Section.hpp>
 #include <MarioKartWii/Race/Racedata.hpp>
 #include <MarioKartWii/RKNet/RKNetController.hpp>
+#include <MarioKartWii/RKNet/USER.hpp>
 #include <Config.hpp>
 #include <PulsarSystem.hpp>
 #include <Network/Network.hpp>
@@ -12,7 +13,7 @@
 namespace Pulsar {
 namespace Network {
 
-u32 REGIONID = 0x68;
+u32 REGIONID = 0xCC;
 extern void ResetTrackBlockingOnRoomEnd();
 
 // FIX: SectionLoadHook richiede void(*)() senza parametri.
@@ -21,16 +22,16 @@ extern void ResetTrackBlockingOnRoomEnd();
 // sembra un copia-incolla incompleto — il secondo branch è irraggiungibile.
 static void SetRegionId() {
     if (Pulsar::System::sInstance->IsContext(PULSAR_STARTVKWW))
-        REGIONID = 0x68;
+        REGIONID = 0xCC;
     else if (Pulsar::System::sInstance->IsContext(PULSAR_STARTOTTWW))
-        REGIONID = 0x69;
+        REGIONID = 0xCD;
     else if (Pulsar::System::sInstance->IsContext(PULSAR_STARTITEMRAIN))
-        REGIONID = 0x0D;
+        REGIONID = 0x71;
     else {
         RKNet::Controller* controller = RKNet::Controller::sInstance;
         if (controller != nullptr) {
             u8 curRegion = controller->localStatusData.regionId;
-            if (REGIONID != 0x69 && REGIONID != 0x0D) {
+            if (REGIONID != 0xCD && REGIONID != 0x71) {
                 REGIONID = curRegion;
             }
         }
@@ -92,25 +93,42 @@ static bool ConvertFriendRoomStateToRegional() {
     const u8 localPlayerCount = controller->subs[controller->currentSub].localPlayerCount;
     const u8 totalPlayerCount = controller->subs[controller->currentSub].playerCount;
 
-    controller->roomType = RKNet::ROOMTYPE_VS_REGIONAL;
-    controller->localStatusData.regionId = REGIONID;
+    Network::Mgr& netMgr = system->netMgr;
+    netMgr.hostContext = 0;
+    netMgr.denyType = DENY_TYPE_NORMAL;
+    netMgr.deniesCount = 0;
+    netMgr.ownStatusData = 0;
+    netMgr.racesPerGP = 3;
+    netMgr.curBlockingArrayIdx = 0;
 
-    controller->UpdateStatusDatas();
-    {
-        Mgr& netMgr = system->netMgr;
-        const u32 blockingCount = system->GetInfo().GetTrackBlocking();
-
-        if (netMgr.lastTracks != nullptr && blockingCount > 0) {
-            for (u32 i = 0; i < blockingCount; ++i) {
-                netMgr.lastTracks[i] = PULSARID_NONE;
-            }
-            netMgr.curBlockingArrayIdx = 0;
-            netMgr.lastGroupedTrackPlayed = false;
+    const u32 blockingCount = system->GetInfo().GetTrackBlocking();
+    if (netMgr.lastTracks != nullptr && blockingCount > 0) {
+        for (u32 i = 0; i < blockingCount; ++i) {
+            netMgr.lastTracks[i] = PULSARID_NONE;
         }
     }
 
-    system->ClearContext();
+    controller->roomType = RKNet::ROOMTYPE_VS_REGIONAL;
+    controller->localStatusData.regionId = REGIONID;
+    controller->localStatusData.status = RKNet::FRIEND_STATUS_PUBLIC_VS;
+    controller->localStatusData.playerCount = totalPlayerCount != 0 ? totalPlayerCount : localPlayerCount;
+    controller->localStatusData.curRace = 0;
+
+    if (RKNet::USERHandler::sInstance != nullptr) {
+        RKNet::USERHandler::sInstance->isInitialized = false;
+    }
+
+    for (int i = 0; i < 2; ++i) {
+        controller->subs[i].matchingSuspended = false;
+        controller->subs[i].groupId = 0;
+        controller->subs[i].friendToJoin = static_cast<u32>(-1);
+    }
+
+    controller->UpdateStatusDatas();
     controller->StartMatching();
+
+    system->ClearContext();
+    system->UpdateContext();
     return true;
 }
 

@@ -2,6 +2,7 @@
 #include <MarioKartWii/RKSYS/RKSYSMgr.hpp>
 #include <Settings/UI/ExpWFCMainPage.hpp>
 #include <UI/UI.hpp>
+#include <UI/PlayerCount.hpp>
 
 namespace Pulsar {
 namespace Network {
@@ -14,6 +15,9 @@ kmWrite32(0x8064b984, 0x60000000); //nop the InitControl call in the init func
 kmWrite24(0x80899a36, 'PUL'); //8064ba38
 kmWrite24(0x80899a5B, 'PUL'); //8064ba90
 
+kmWrite32(0x8064c284, 0x38800001); // change control group size parameter to 1
+kmCall(0x8064c294, ExpWFCModeSel::InitButton); // call InitButton to set up vrButton
+
 ExpWFCMain::ExpWFCMain() {
     this->onSettingsClick.subject = this;
     this->onSettingsClick.ptmf = &ExpWFCMain::OnSettingsButtonClick;
@@ -22,16 +26,42 @@ ExpWFCMain::ExpWFCMain() {
 
 void ExpWFCMain::OnInit() {
     Network::REGIONID = System::sInstance->GetInfo().GetWiimmfiRegion();
-    this->InitControlGroup(6); //5 controls usually + settings button
+    this->InitControlGroup(8); //5 controls usually + settings button (5) + playerCount (6) + rankInfo (7)
     WFCMainMenu::OnInit();
     this->AddControl(5, settingsButton, 0);
 
-    this->settingsButton.Load(UI::buttonFolder, "PULiMenuSingleTop", "Settings", 1, 0, false);
+    this->settingsButton.Load(UI::buttonFolder, "Settings1P", "Settings", 1, 0, false);
     this->settingsButton.buttonId = 5;
     this->settingsButton.SetOnClickHandler(this->onSettingsClick, 0);
     this->settingsButton.SetOnSelectHandler(this->onButtonSelectHandler);
 
+    this->AddControl(6, playerCount, 0);
+    ControlLoader loader(&this->playerCount);
+    loader.Load(UI::buttonFolder, "PlayerButton", "VRButton", nullptr);
+    for (int i = 0; i < 4; ++i) {
+        this->playerCount.positionAndscale[i].position.x = 0.0f;
+    }
+    this->playerCount.SetPosition(0.0f);
+
+    this->AddControl(7, rankInfo, 0);
+    ControlLoader rankLoader(&this->rankInfo);
+    rankLoader.Load(UI::buttonFolder, "RankButton", "VRButton", nullptr);
+    this->rankInfo.isHidden = true;
+
     this->topSettingsPage = SettingsPanel::id;
+}
+
+void ExpWFCMain::BeforeControlUpdate() {
+    WFCMainMenu::BeforeControlUpdate();
+
+    int nTotal = 0;
+    PlayerCount::GetNumbersTotal(nTotal);
+
+    Text::Info info;
+    info.intToPass[0] = nTotal;
+    this->playerCount.SetTextBoxMessage("go", BMG_PLAYER_COUNT, &info);
+
+    this->rankInfo.isHidden = true;
 }
 
 void ExpWFCMain::OnSettingsButtonClick(PushButton& pushButton, u32 r5) {
@@ -59,7 +89,100 @@ ExpWFCModeSel::ExpWFCModeSel() : lastClickedButton(0), submenuState(STATE_MAIN) 
     this->onBackPressHandler.ptmf = &ExpWFCModeSel::OnBackPress;
 }
 
+void ExpWFCModeSel::OnInit() {
+    WFCModeSelect::OnInit();
+}
 
+void ExpWFCModeSel::InitButton(ExpWFCModeSel& self) {
+    self.InitControlGroup(6); // 5 vanilla + vrButton
+    
+    self.AddControl(5, self.vrButton, 0);
+    ControlLoader loader(&self.vrButton);
+    loader.Load(UI::buttonFolder, "VRButton", "VRButton", nullptr);
+    
+    RKSYS::Mgr* rksysMgr = RKSYS::Mgr::sInstance;
+    u32 vr = 0;
+    u32 br = 5000;
+    if (rksysMgr->curLicenseId >= 0) {
+        RKSYS::LicenseMgr& license = rksysMgr->licenses[rksysMgr->curLicenseId];
+        vr = license.vr.points;
+        br = license.br.points;
+    }
+    
+    wchar_t buffer[64];
+    swprintf(buffer, 64, L"%u VR", vr);
+    Text::Info info;
+    info.strings[0] = buffer;
+    self.vrButton.SetTextBoxMessage("go", UI::BMG_TEXT, &info);
+}
+
+void ExpWFCModeSel::BeforeControlUpdate() {
+    WFCModeSelect::BeforeControlUpdate();
+
+    int nVS, n200cc, nOTT, nIR, nBattle;
+    PlayerCount::GetNumbers(nVS, n200cc, nOTT, nIR, nBattle);
+
+    Text::Info info;
+    Pages::GlobeSearch* search = SectionMgr::sInstance->curSection->Get<Pages::GlobeSearch>();
+    const u32 searchType = search != nullptr ? search->searchType : 0;
+
+    if (searchType == 0) {
+        // Worldwide search
+        info.intToPass[0] = nVS;
+        this->vsButton.SetTextBoxMessage("go", BMG_PLAYER_COUNT, &info);
+
+        info.intToPass[0] = nBattle;
+        this->battleButton.SetTextBoxMessage("go", BMG_PLAYER_COUNT, &info);
+    } else {
+        // VK Worldwide
+        if (this->submenuState == STATE_MAIN) {
+            info.intToPass[0] = nVS + n200cc;
+            this->vsButton.SetTextBoxMessage("go", BMG_PLAYER_COUNT, &info);
+
+            info.intToPass[0] = nOTT + nIR;
+            this->battleButton.SetTextBoxMessage("go", BMG_PLAYER_COUNT, &info);
+        } else if (this->submenuState == STATE_VS_WW) {
+            info.intToPass[0] = nVS;
+            this->vsButton.SetTextBoxMessage("go", BMG_PLAYER_COUNT, &info);
+
+            info.intToPass[0] = n200cc;
+            this->battleButton.SetTextBoxMessage("go", BMG_PLAYER_COUNT, &info);
+        } else if (this->submenuState == STATE_OTHER_VS) {
+            info.intToPass[0] = nOTT;
+            this->vsButton.SetTextBoxMessage("go", BMG_PLAYER_COUNT, &info);
+
+            info.intToPass[0] = nIR;
+            this->battleButton.SetTextBoxMessage("go", BMG_PLAYER_COUNT, &info);
+        }
+    }
+
+    // VR/BR bottom bubble
+    RKSYS::Mgr* rksysMgr = RKSYS::Mgr::sInstance;
+    u32 vr = 0;
+    u32 br = 5000;
+    if (rksysMgr->curLicenseId >= 0) {
+        RKSYS::LicenseMgr& license = rksysMgr->licenses[rksysMgr->curLicenseId];
+        vr = license.vr.points;
+        br = license.br.points;
+    }
+
+    wchar_t buffer[64];
+    bool showBR = false;
+    if (searchType == 0) {
+        if (this->battleButton.IsSelected()) {
+            showBR = true;
+        }
+    }
+    
+    if (showBR) {
+        swprintf(buffer, 64, L"%u BR", br);
+    } else {
+        swprintf(buffer, 64, L"%u VR", vr);
+    }
+    Text::Info vrInfo;
+    vrInfo.strings[0] = buffer;
+    this->vrButton.SetTextBoxMessage("go", UI::BMG_TEXT, &vrInfo);
+}
 
 static void SetTextBoxMessageSafe(LayoutUIControl& control, const char* textBoxName, u32 bmgId, const Text::Info* textInfo = nullptr) {
     if (control.layout.GetPaneByName(textBoxName) != nullptr) {
@@ -68,27 +191,6 @@ static void SetTextBoxMessageSafe(LayoutUIControl& control, const char* textBoxN
 }
 
 void ExpWFCModeSel::SetMenuTextAndRatings() {
-    Text::Info vrInfo;
-    memset(&vrInfo, 0, sizeof(Text::Info));
-    Text::Info brInfo;
-    memset(&brInfo, 0, sizeof(Text::Info));
-    RKSYS::Mgr* rksysMgr = RKSYS::Mgr::sInstance;
-    u32 vr = 0;
-    u32 br = 5000;
-    if(rksysMgr->curLicenseId >= 0) {
-        RKSYS::LicenseMgr& license = rksysMgr->licenses[rksysMgr->curLicenseId];
-        vr = license.vr.points;
-        br = license.br.points;
-    }
-
-    wchar_t vrBuffer[32];
-    swprintf(vrBuffer, 32, L"%u VR", vr);
-    vrInfo.strings[0] = vrBuffer;
-
-    wchar_t brBuffer[32];
-    swprintf(brBuffer, 32, L"%u BR", br);
-    brInfo.strings[0] = brBuffer;
-
     Pages::GlobeSearch* search = SectionMgr::sInstance->curSection->Get<Pages::GlobeSearch>();
     const u32 searchType = search != nullptr ? search->searchType : 0;
 
@@ -96,39 +198,31 @@ void ExpWFCModeSel::SetMenuTextAndRatings() {
         SetTextBoxMessageSafe(this->vsButton, "text", BMG_VS_RESTORE); // VS
         SetTextBoxMessageSafe(this->vsButton, "text_light_01", BMG_VS_RESTORE);
         SetTextBoxMessageSafe(this->vsButton, "text_light_02", BMG_VS_RESTORE);
-        SetTextBoxMessageSafe(this->vsButton, "go", BMG_TEXT, &vrInfo); // VR
         SetTextBoxMessageSafe(this->battleButton, "text", BMG_BATTLE_RESTORE); // Battle
         SetTextBoxMessageSafe(this->battleButton, "text_light_01", BMG_BATTLE_RESTORE);
         SetTextBoxMessageSafe(this->battleButton, "text_light_02", BMG_BATTLE_RESTORE);
-        SetTextBoxMessageSafe(this->battleButton, "go", BMG_TEXT, &brInfo); // BR
     } else {
         if (this->submenuState == STATE_MAIN) {
             SetTextBoxMessageSafe(this->vsButton, "text", BMG_VS_WW_MENU); // VS WW
             SetTextBoxMessageSafe(this->vsButton, "text_light_01", BMG_VS_WW_MENU);
             SetTextBoxMessageSafe(this->vsButton, "text_light_02", BMG_VS_WW_MENU);
-            SetTextBoxMessageSafe(this->vsButton, "go", BMG_TEXT, &vrInfo); // VR
             SetTextBoxMessageSafe(this->battleButton, "text", BMG_OTHER_VS_MENU); // Other VS
             SetTextBoxMessageSafe(this->battleButton, "text_light_01", BMG_OTHER_VS_MENU);
             SetTextBoxMessageSafe(this->battleButton, "text_light_02", BMG_OTHER_VS_MENU);
-            SetTextBoxMessageSafe(this->battleButton, "go", BMG_TEXT, &vrInfo); // VR
         } else if (this->submenuState == STATE_VS_WW) {
             SetTextBoxMessageSafe(this->vsButton, "text", BMG_VANZA_VS); // Vanza VS
             SetTextBoxMessageSafe(this->vsButton, "text_light_01", BMG_VANZA_VS);
             SetTextBoxMessageSafe(this->vsButton, "text_light_02", BMG_VANZA_VS);
-            SetTextBoxMessageSafe(this->vsButton, "go", BMG_TEXT, &vrInfo); // VR
             SetTextBoxMessageSafe(this->battleButton, "text", BMG_200CC_VANZA_VS); // 200cc Vanza VS
             SetTextBoxMessageSafe(this->battleButton, "text_light_01", BMG_200CC_VANZA_VS);
             SetTextBoxMessageSafe(this->battleButton, "text_light_02", BMG_200CC_VANZA_VS);
-            SetTextBoxMessageSafe(this->battleButton, "go", BMG_TEXT, &vrInfo); // VR
         } else if (this->submenuState == STATE_OTHER_VS) {
             SetTextBoxMessageSafe(this->vsButton, "text", BMG_OTT_BUTTON); // OnlineTT
             SetTextBoxMessageSafe(this->vsButton, "text_light_01", BMG_OTT_BUTTON);
             SetTextBoxMessageSafe(this->vsButton, "text_light_02", BMG_OTT_BUTTON);
-            SetTextBoxMessageSafe(this->vsButton, "go", BMG_TEXT, &vrInfo); // VR
             SetTextBoxMessageSafe(this->battleButton, "text", BMG_ITEMRAIN_WW_START_MESSAGE); // Item Rain WW
             SetTextBoxMessageSafe(this->battleButton, "text_light_01", BMG_ITEMRAIN_WW_START_MESSAGE);
             SetTextBoxMessageSafe(this->battleButton, "text_light_02", BMG_ITEMRAIN_WW_START_MESSAGE);
-            SetTextBoxMessageSafe(this->battleButton, "go", BMG_TEXT, &vrInfo); // VR
         }
     }
 }
@@ -218,7 +312,7 @@ void ExpWFCModeSel::OnModeButtonClick(PushButton& modeButton, u32 hudSlotId) {
             System::sInstance->netMgr.ownStatusData = false;
             WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
         } else {
-            Network::REGIONID = 0x0C;
+            Network::REGIONID = 0x70;
             System::sInstance->netMgr.ownStatusData = false;
             modeButton.buttonId = 1;
             WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
@@ -226,13 +320,13 @@ void ExpWFCModeSel::OnModeButtonClick(PushButton& modeButton, u32 hudSlotId) {
         }
     } else if (this->submenuState == STATE_OTHER_VS) {
         if (clickedId == 1) {
-            Network::REGIONID = 0x69;
+            Network::REGIONID = 0xCD;
             System::sInstance->netMgr.ownStatusData = true;
             modeButton.buttonId = 1;
             WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
             modeButton.buttonId = clickedId;
         } else {
-            Network::REGIONID = 0x0D;
+            Network::REGIONID = 0x71;
             System::sInstance->netMgr.ownStatusData = false;
             modeButton.buttonId = 1;
             WFCModeSelect::OnModeButtonClick(modeButton, hudSlotId);
